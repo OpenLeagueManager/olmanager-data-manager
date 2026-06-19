@@ -1,0 +1,211 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { PROPOSAL_TYPE_METADATA } from "@/domain/proposals/metadata";
+import type { ProposalId, ProposalReview, ProposalType } from "@/domain/proposals/types";
+import {
+  NON_PRODUCTION_SESSION_STORE_NOTICE,
+  ProposalDetail,
+  ProposalForm,
+  ProposalList,
+  ProposalSessionStoreProvider,
+  ReviewControls,
+  useProposalSessionStore,
+  useProposalSessionStoreReady,
+} from "@/features/proposals";
+import styles from "./proposal-ui.module.css";
+
+const proposalTypeLinks = Object.values(PROPOSAL_TYPE_METADATA);
+
+export function ProposalsRoute() {
+  return (
+    <ProposalSessionStoreProvider>
+      <ProposalsWorkbench />
+    </ProposalSessionStoreProvider>
+  );
+}
+
+export function NewProposalRoute({ proposalType }: { proposalType: ProposalType }) {
+  return (
+    <ProposalSessionStoreProvider>
+      <NewProposalWorkbench proposalType={proposalType} />
+    </ProposalSessionStoreProvider>
+  );
+}
+
+export function ProposalDetailRoute({ proposalId }: { proposalId: ProposalId }) {
+  return (
+    <ProposalSessionStoreProvider>
+      <ProposalDetailWorkbench proposalId={proposalId} />
+    </ProposalSessionStoreProvider>
+  );
+}
+
+function ProposalsWorkbench() {
+  const { clearSessionProposals, proposals } = useProposalSessionStore();
+
+  return (
+    <div className={styles.page}>
+      <section className={styles.heroPanel} aria-labelledby="proposals-title">
+        <p className={styles.eyebrow}>Typed proposal workbench</p>
+        <h1 className={styles.title} id="proposals-title">Review OLManager data changes before anything ships.</h1>
+        <p className={styles.lede}>
+          Contributors create typed proposals from fixture data. Reviewers inspect deterministic
+          diffs and record stub approval or rejection decisions in this browser session only.
+        </p>
+        <MvpExclusions />
+      </section>
+
+      <section className={styles.contentPanel} aria-labelledby="create-title">
+        <div className={styles.sectionHeading}>
+          <p className={styles.eyebrow}>Create</p>
+          <h2 className={styles.sectionTitle} id="create-title">Choose a supported proposal type</h2>
+        </div>
+        <div className={styles.choiceGrid}>
+          {proposalTypeLinks.map((proposalType) => (
+            <Link className={styles.choiceCard} href={proposalType.href} key={proposalType.href}>
+              <span className={styles.choiceTitle}>{proposalType.label}</span>
+              <small className={styles.choiceDescription}>{proposalType.description}</small>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className={styles.contentPanel} aria-labelledby="session-proposals-title">
+        <div className={`${styles.sectionHeading} ${styles.withActions}`}>
+          <div>
+            <p className={styles.eyebrow}>Session review queue</p>
+            <h2 className={styles.sectionTitle} id="session-proposals-title">Current proposals</h2>
+          </div>
+          {proposals.length > 0 ? (
+            <button className={styles.button} onClick={clearSessionProposals} type="button">
+              Clear session proposals
+            </button>
+          ) : null}
+        </div>
+        <ProposalList proposals={proposals} />
+      </section>
+    </div>
+  );
+}
+
+function NewProposalWorkbench({ proposalType }: { proposalType: ProposalType }) {
+  const router = useRouter();
+  const { addDraft } = useProposalSessionStore();
+
+  return (
+    <div className={`${styles.page} ${styles.narrowPage}`}>
+      <section className={styles.contentPanel} aria-labelledby="new-proposal-title">
+        <Link className={styles.textLink} href="/proposals">
+          Back to proposal queue
+        </Link>
+        <div className={styles.sectionHeading}>
+          <p className={styles.eyebrow}>New proposal</p>
+          <h1 className={styles.title} id="new-proposal-title">Create a validated draft</h1>
+          <p className={`${styles.lede} ${styles.compactLede}`}>
+            The form uses native constraints for guidance, then validates through the typed domain
+            rules before creating a reviewable draft.
+          </p>
+        </div>
+        <ProposalForm
+          onProposalAccepted={(payload) => {
+            const proposal = addDraft(payload);
+            router.push(`/proposals/${proposal.id}`);
+          }}
+          proposalType={proposalType}
+        />
+      </section>
+    </div>
+  );
+}
+
+function ProposalDetailWorkbench({ proposalId }: { proposalId: ProposalId }) {
+  const { applyReviewAction, getProposal, submitDraft } = useProposalSessionStore();
+  const isSessionStoreReady = useProposalSessionStoreReady();
+  const proposal = getProposal(proposalId);
+
+  if (!isSessionStoreReady) {
+    return (
+      <div className={`${styles.page} ${styles.narrowPage}`}>
+        <section className={styles.contentPanel} aria-labelledby="loading-proposal-title">
+          <Link className={styles.textLink} href="/proposals">
+            Back to proposal queue
+          </Link>
+          <h1 className={styles.title} id="loading-proposal-title">Loading session proposal</h1>
+          <p className={`${styles.lede} ${styles.compactLede}`}>Checking this browser session for stored proposal state.</p>
+        </section>
+      </div>
+    );
+  }
+
+  if (!proposal) {
+    return (
+      <div className={`${styles.page} ${styles.narrowPage}`}>
+        <section className={styles.contentPanel} aria-labelledby="missing-proposal-title">
+          <Link className={styles.textLink} href="/proposals">
+            Back to proposal queue
+          </Link>
+          <h1 className={styles.title} id="missing-proposal-title">Proposal not found in this session</h1>
+          <p className={`${styles.lede} ${styles.compactLede}`}>
+            {NON_PRODUCTION_SESSION_STORE_NOTICE} Open the queue in the same browser session, or
+            create a new fixture-backed proposal.
+          </p>
+        </section>
+      </div>
+    );
+  }
+
+  const currentProposalId = proposal.id;
+
+  function handleReviewChange(review: ProposalReview) {
+    if (review.state === "approved" && review.reviewer) {
+      applyReviewAction(currentProposalId, { type: "approve", reviewer: review.reviewer });
+    }
+
+    if (review.state === "rejected" && review.reviewer) {
+      applyReviewAction(currentProposalId, {
+        type: "reject",
+        reviewer: review.reviewer,
+        reason: review.rejectionReason ?? "",
+      });
+    }
+  }
+
+  return (
+    <div className={`${styles.page} ${styles.narrowPage}`}>
+      <Link className={styles.textLink} href="/proposals">
+        Back to proposal queue
+      </Link>
+      <ProposalDetail proposal={proposal} />
+      {proposal.review.state === "draft" ? (
+        <section className={styles.card} aria-labelledby="submit-draft-title">
+          <h2 id="submit-draft-title">Submit draft for review</h2>
+          <p className={styles.notice}>
+            Submitting changes only this session-backed MVP state. It does not create GitHub
+            branches, commits, pull requests, production records, assets, or ZIP files.
+          </p>
+          <div className={styles.buttonRow}>
+            <button
+              className={`${styles.button} ${styles.primaryButton}`}
+              onClick={() => submitDraft(proposal.id)}
+              type="button"
+            >
+              Submit draft for review
+            </button>
+          </div>
+        </section>
+      ) : null}
+      <ReviewControls onReviewChange={handleReviewChange} review={proposal.review} />
+    </div>
+  );
+}
+
+function MvpExclusions() {
+  return (
+    <aside className={styles.mvpBoundary} aria-label="MVP exclusions">
+      <strong>MVP boundary:</strong> no Discord OAuth or role sync, no GitHub writes, no
+      production persistence, no asset uploads, and no ZIP export generation.
+    </aside>
+  );
+}

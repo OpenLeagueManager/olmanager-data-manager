@@ -1,0 +1,287 @@
+.page {
+  display: grid;
+  gap: 1.25rem;
+  margin-inline: auto;
+  max-width: 72rem;
+  padding: clamp(1rem, 4vw, 3rem);
+}
+
+.narrowPage {
+  max-width: 52rem;
+}
+
+.heroPanel,
+.contentPanel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 1.5rem;
+  box-shadow: 0 24px 80px rgb(16 42 67 / 0.08);
+  display: grid;
+  gap: 1.25rem;
+  padding: clamp(1.25rem, 4vw, 3rem);
+}
+
+.heroPanel {
+  background:
+    radial-gradient(circle at top right, rgb(245 158 11 / 0.2), transparent 18rem),
+    linear-gradient(135deg, #ffffff 0%, #eef5ff 100%);
+}
+
+.eyebrow {
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.title {
+  color: var(--panel-strong);
+  font-size: clamp(2.35rem, 8vw, 5.75rem);
+  letter-spacing: -0.075em;
+  line-height: 0.92;
+  max-width: 11ch;
+}
+
+.sectionTitle {
+  color: var(--panel-strong);
+  font-size: clamp(1.5rem, 3vw, 2.35rem);
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.lede {
+  color: var(--muted);
+  font-size: clamp(1.05rem, 2vw, 1.3rem);
+  line-height: 1.7;
+  max-width: 54rem;
+}
+
+.compactLede {
+  font-size: 1rem;
+  max-width: 42rem;
+}
+
+.choiceGrid,
+.withActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.withActions {
+  align-items: start;
+  justify-content: space-between;
+}
+
+.choiceGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+}
+
+.choiceCard {
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  display: grid;
+  font-weight: 800;
+  gap: 0.5rem;
+  padding: 1rem;
+  text-decoration: none;
+}
+
+.choiceTitle {
+  color: var(--panel-strong);
+}
+
+.choiceDescription {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.textLink {
+  color: var(--accent);
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  width: fit-content;
+}
+
+.sectionHeading {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.mvpBoundary {
+  background: #fff7ed;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  color: #9a3412;
+  line-height: 1.6;
+  padding: 1rem;
+}
+
+.stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.fieldset {
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.label {
+  font-weight: 600;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.control {
+  border: 1px solid #9aa4b2;
+  border-radius: 0.5rem;
+  font: inherit;
+  padding: 0.625rem 0.75rem;
+}
+
+.control:user-invalid,
+.control[data-user-invalid="true"] {
+  background: #fff5f5;
+  border-color: #b42318;
+  outline-color: #b42318;
+}
+
+.fieldError {
+  color: #b42318;
+  display: none;
+  font-size: 0.875rem;
+}
+
+.field:has(.control:user-invalid) .fieldError,
+.field:has(.control[data-user-invalid="true"]) .fieldError,
+.fieldError[data-visible="true"] {
+  display: block;
+}
+
+.buttonRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.button {
+  border: 1px solid var(--accent);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 0.625rem 0.9rem;
+}
+
+.button:focus-visible,
+.inlineLink:focus-visible,
+.control:focus-visible {
+  outline: 3px solid #f59e0b;
+  outline-offset: 3px;
+}
+
+.primaryButton {
+  background: var(--accent);
+  color: white;
+}
+
+.secondaryButton {
+  background: white;
+  color: var(--accent);
+}
+
+.dangerButton {
+  background: #b42318;
+  border-color: #b42318;
+  color: white;
+}
+
+.notice {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 0.75rem;
+  color: #9a3412;
+  padding: 0.75rem;
+}
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.metadata {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.status {
+  border-radius: 999px;
+  display: inline-block;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  padding: 0.25rem 0.5rem;
+  text-transform: uppercase;
+}
+
+.statusDraft {
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.statusSubmitted {
+  background: #eff6ff;
+  color: var(--accent);
+}
+
+.statusApproved {
+  background: #ecfdf3;
+  color: #027a48;
+}
+
+.statusRejected {
+  background: #fef3f2;
+  color: #b42318;
+}
+
+.diffList {
+  display: grid;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.diffItem {
+  border-left: 4px solid #93c5fd;
+  padding-left: 0.75rem;
+}
+
+.diffWarning {
+  border-left-color: #f59e0b;
+}
+
+.inlineLink {
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
