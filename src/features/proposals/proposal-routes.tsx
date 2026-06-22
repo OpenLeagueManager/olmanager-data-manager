@@ -209,7 +209,7 @@ function ProposalsWorkbench() {
         </div>
       </section>
 
-      {!session?.user && proposals.length > 0 ? (
+      {!session?.user ? (
         <section className={styles.contentPanel} aria-labelledby="session-proposals-title">
           <div className={`${styles.sectionHeading} ${styles.withActions}`}>
             <div>
@@ -218,9 +218,11 @@ function ProposalsWorkbench() {
                 Session proposals
               </h2>
             </div>
-            <Button onClick={clearSessionProposals} type="button" variant="secondary">
-              Clear
-            </Button>
+            {proposals.length > 0 ? (
+              <Button onClick={clearSessionProposals} type="button" variant="secondary">
+                Clear
+              </Button>
+            ) : null}
           </div>
           <p className={styles.hint}>
             Sign in with Discord to create GitHub-backed proposals instead.

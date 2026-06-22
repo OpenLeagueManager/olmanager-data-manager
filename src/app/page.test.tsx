@@ -28,15 +28,13 @@ describe("Home page", () => {
     expect(createLink).toHaveAttribute("href", "/proposals/new/AddPlayer");
   });
 
-  it("shows the MVP boundary copy and session-only badge", () => {
+  it("shows the production status badge", () => {
     render(<Home />);
 
-    expect(screen.getByRole("heading", { name: /MVP boundary/i })).toBeVisible();
-    expect(screen.getByText("Session-only")).toBeVisible();
+    expect(screen.getByRole("heading", { name: /GitHub-backed/i })).toBeVisible();
+    expect(screen.getByText("Production")).toBeVisible();
     expect(
-      screen.getByText(
-        /This is a safe review loop, not a production pipeline\. Proposals stay session-backed; no production integrations run on approval\./i,
-      ),
+      screen.getByText(/Proposals are created as GitHub Issues/i),
     ).toBeVisible();
   });
 });
