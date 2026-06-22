@@ -1,6 +1,8 @@
 "use client";
 
 import { cn } from "@/lib/cn";
+import { ThemeToggle } from "./ThemeToggle";
+import { AuthButton } from "./AuthButton";
 
 export type TopbarProps = {
   onMenuClick: () => void;
@@ -31,10 +33,10 @@ export function Topbar({ onMenuClick, menuOpen = false, className }: TopbarProps
         OLManager Data Manager
       </span>
 
-      <div
-        className="size-8 rounded-full bg-muted ring-2 ring-primary"
-        aria-hidden="true"
-      />
+      <div className="flex items-center gap-2">
+        <ThemeToggle />
+        <AuthButton />
+      </div>
     </header>
   );
 }
