@@ -18,6 +18,7 @@ import {
   useProposalSessionStoreNotice,
   useProposalSessionStoreReady,
 } from "@/features/proposals";
+import { ProposalDetailCard } from "./proposal-detail-card";
 import styles from "./proposal-ui.module.css";
 
 const proposalTypeLinks = Object.values(PROPOSAL_TYPE_METADATA);
@@ -176,10 +177,8 @@ function ProposalsWorkbench() {
                   </button>
                   {isExpanded ? (
                     <div className="mt-3 border-t border-border pt-3">
-                      <div className="rounded-md bg-muted p-4">
-                        <pre className="whitespace-pre-wrap break-words text-xs leading-relaxed">{gh.body}</pre>
-                      </div>
-                      <div className="mt-2 flex items-center gap-2">
+                      <ProposalDetailCard body={gh.body} />
+                      <div className="mt-3 flex items-center gap-2">
                         <a className="text-xs text-primary hover:underline" href={gh.url} rel="noopener noreferrer" target="_blank">
                           View on GitHub ↗
                         </a>

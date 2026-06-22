@@ -66,24 +66,38 @@ export async function POST(request: Request) {
 function formatProposalBody(payload: ProposalPayload): string {
   const lines: string[] = [];
 
-  lines.push(`## Proposal: ${payload.type}`);
+  lines.push(`## ${payload.type}`);
   lines.push("");
 
-  // Format payload fields as a table or list
+  // Format payload fields
   const entries = Object.entries(payload).filter(
     ([key]) => key !== "version" && key !== "type",
   );
 
   for (const [key, value] of entries) {
     if (typeof value === "object" && value !== null) {
-      lines.push(`### ${key}`);
+      lines.push(`### ${formatKey(key)}`);
       for (const [subKey, subValue] of Object.entries(value as Record<string, unknown>)) {
-        lines.push(`- **${subKey}**: ${JSON.stringify(subValue)}`);
+        lines.push(`- **${formatKey(subKey)}**: ${formatPrimitive(subValue)}`);
       }
     } else {
-      lines.push(`- **${key}**: ${value}`);
+      lines.push(`- **${formatKey(key)}**: ${formatPrimitive(value)}`);
     }
   }
 
   return lines.join("\n");
+}
+
+function formatKey(key: string): string {
+  return key
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function formatPrimitive(value: unknown): string {
+  if (value === null || value === undefined) return "—";
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (typeof value === "number") return value.toLocaleString("en-US");
+  if (typeof value === "string") return value;
+  return JSON.stringify(value);
 }
