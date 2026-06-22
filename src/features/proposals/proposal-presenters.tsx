@@ -70,7 +70,8 @@ export function ProposalDiff({ diff }: { diff: readonly DiffRecord[] }) {
           className={`${styles.diffItem} ${record.severity === "warning" ? styles.diffWarning : ""}`}
           key={`${record.field}-${String(record.before)}-${String(record.after)}`}
         >
-          <strong>{record.field}</strong>: <Value value={record.before} /> → <Value value={record.after} />
+          <strong>{record.field}</strong>: <Value value={record.before} /> →{" "}
+          <Value value={record.after} />
         </li>
       ))}
     </ul>
@@ -109,11 +110,19 @@ function Value({ value }: { value: unknown }) {
 function proposalTitle(payload: ProposalPayload) {
   switch (payload.type) {
     case "AddPlayer":
-      return `Add ${payload.player.name}`;
-    case "EditPlayerAttributes":
+      return `Add ${payload.player.match_name}`;
+    case "EditPlayer":
       return `Edit ${payload.playerId}`;
     case "TransferPlayer":
       return `Transfer ${payload.playerId}`;
+    case "AddStaff":
+      return `Add ${payload.staff.first_name} ${payload.staff.last_name}`;
+    case "EditStaff":
+      return `Edit ${payload.staffId}`;
+    case "ReleaseStaff":
+      return `Release ${payload.staffId}`;
+    case "EditTeam":
+      return `Edit ${payload.teamId}`;
   }
 }
 

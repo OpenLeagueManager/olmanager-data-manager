@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildProposalDiff } from "@/domain/proposals/diff";
-import type { ProposalPayload } from "@/domain/proposals/types";
+import type { ProposalId, ProposalPayload } from "@/domain/proposals/types";
 import NewProposalPage from "@/app/(proposals)/proposals/new/[type]/page";
 import { NewProposalRoute, ProposalDetailRoute, ProposalsRoute } from "./proposal-routes";
 import {
@@ -33,7 +33,7 @@ describe("proposal routes", () => {
   it("renders session proposals after mounting without trusting server-time storage", async () => {
     window.sessionStorage.setItem(
       SESSION_PROPOSALS_STORAGE_KEY,
-      JSON.stringify([makeSessionProposal({ id: "proposal-route-list" })]),
+      JSON.stringify([makeSessionProposal({ id: "proposal-route-list" as ProposalId })]),
     );
 
     const serverMarkup = renderToString(<ProposalsRoute />);
@@ -43,7 +43,7 @@ describe("proposal routes", () => {
     render(<ProposalsRoute />);
 
     await waitFor(() => {
-      expect(screen.getByText("Transfer player-saka")).toBeVisible();
+      expect(screen.getByText("Transfer lec-player-98767975968177297")).toBeVisible();
       expect(screen.getByText("Proposal ID: proposal-route-list")).toBeVisible();
     });
   });
@@ -53,27 +53,21 @@ describe("proposal routes", () => {
 
     render(<NewProposalRoute proposalType="AddPlayer" />);
 
-    fireEvent.change(screen.getByLabelText("Player ID"), {
-      target: { value: "player-route-test" },
-    });
-    fireEvent.change(screen.getByLabelText("Player name"), {
-      target: { value: "Route Test Player" },
-    });
-    fireEvent.change(screen.getByLabelText("Position"), { target: { value: "MF" } });
-    fireEvent.change(screen.getByLabelText("Team"), { target: { value: "team-arsenal" } });
-    fireEvent.change(screen.getByLabelText("Competition"), {
-      target: { value: "competition-premier-league" },
-    });
-    fireEvent.change(screen.getByLabelText("Overall rating"), { target: { value: "72" } });
+    fireEvent.change(screen.getByLabelText(/Full name/), { target: { value: "Route Test" } });
+    fireEvent.change(screen.getByLabelText(/Match name/), { target: { value: "RouteTest" } });
+    fireEvent.change(screen.getByLabelText(/Position/), { target: { value: "Mid" } });
+    fireEvent.change(screen.getByLabelText(/Team/), { target: { value: "lec-g2-esports" } });
+    fireEvent.change(screen.getByLabelText(/Nationality/), { target: { value: "DK" } });
+    fireEvent.change(screen.getByLabelText(/Wage/), { target: { value: "100000" } });
+    fireEvent.change(screen.getByLabelText(/Market value/), { target: { value: "150000" } });
+    fireEvent.change(screen.getByLabelText(/Date of birth/), { target: { value: "2000-01-01" } });
 
-    fireEvent.submit(screen.getByRole("button", { name: "Create draft proposal" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create draft proposal" }));
 
     expect(navigationMocks.push).toHaveBeenCalledWith("/proposals/proposal-route-test-id");
 
     await waitFor(() => {
-      expect(window.sessionStorage.getItem(SESSION_PROPOSALS_STORAGE_KEY)).toContain(
-        "Route Test Player",
-      );
+      expect(window.sessionStorage.getItem(SESSION_PROPOSALS_STORAGE_KEY)).toContain("Route Test");
     });
   });
 
@@ -88,7 +82,7 @@ describe("proposal routes", () => {
   it("keeps detail SSR and first client render stable before showing stored session state", async () => {
     window.sessionStorage.setItem(
       SESSION_PROPOSALS_STORAGE_KEY,
-      JSON.stringify([makeSessionProposal({ id: "proposal-route-detail" })]),
+      JSON.stringify([makeSessionProposal({ id: "proposal-route-detail" as ProposalId })]),
     );
 
     const serverMarkup = renderToString(
@@ -101,7 +95,7 @@ describe("proposal routes", () => {
     render(<ProposalDetailRoute proposalId="proposal-route-detail" />);
 
     await waitFor(() => {
-      expect(screen.getByText("Transfer player-saka")).toBeVisible();
+      expect(screen.getByText("Transfer lec-player-98767975968177297")).toBeVisible();
       expect(screen.getByText("Proposal ID: proposal-route-detail")).toBeVisible();
     });
   });
@@ -119,13 +113,17 @@ describe("proposal routes", () => {
   });
 });
 
-function makeSessionProposal({ id }: { id: string }): SessionProposal {
+function makeSessionProposal({ id }: { id: ProposalId }): SessionProposal {
   const payload: ProposalPayload = {
+    version: 2,
     type: "TransferPlayer",
-    playerId: "player-saka",
-    fromTeamId: "team-arsenal",
-    toTeamId: "team-brighton",
-    competitionId: "competition-premier-league",
+    playerId: "lec-player-98767975968177297",
+    fromTeamId: "lec-g2-esports",
+    toTeamId: "lec-fnatic",
+    competitionId: "lec",
+    wageOffered: 300000,
+    fee: 100000,
+    contractEnd: "2027-11-16",
   };
 
   return {

@@ -1,0 +1,27 @@
+{
+  "name": "LEC Staff",
+  "description": "LEC - 2026 Season",
+  "staff": [
+    {
+      "id": "staff-e0e79a66",
+      "role": "HeadCoach",
+      "wage": 30000,
+      "team_id": "lec-movistar-koi",
+      "last_name": "Fernández",
+      "attributes": {
+        "coaching": 72,
+        "physiotherapy": 74,
+        "judging_ability": 74,
+        "judging_potential": 71
+      },
+      "first_name": "Tomás Campelos",
+      "nationality": "Spain",
+      "contract_end": "2026-12-20",
+      "birth_country": null,
+      "date_of_birth": "1990-01-01",
+      "specialization": null,
+      "profile_image_url": "/staff-photos/ef96759c7dc3486f.webp",
+      "nickname": "Melzhet"
+    }
+  ]
+}

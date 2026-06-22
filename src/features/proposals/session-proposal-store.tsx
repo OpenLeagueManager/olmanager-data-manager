@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useState,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
@@ -25,7 +26,16 @@ export const NON_PRODUCTION_SESSION_STORE_NOTICE =
   "Non-production session adapter: proposals stay in this browser tab session and are never persisted to production storage.";
 
 export const SESSION_PROPOSALS_STORAGE_KEY =
+  "olmanager.typed-proposals.non-production-session.v2";
+
+export const LEGACY_SESSION_PROPOSALS_STORAGE_KEY =
   "olmanager.typed-proposals.non-production-session.v1";
+
+export const SESSION_PROPOSALS_DISCARD_NOTICE_SHOWN_KEY =
+  "olmanager.typed-proposals.v2.discard-notice-shown";
+
+export const V1_DISCARD_MESSAGE =
+  "Your saved proposals used an older schema and were cleared.";
 
 const SESSION_PROPOSALS_CHANGED_EVENT = "olmanager:session-proposals-changed";
 
@@ -41,6 +51,8 @@ export type SessionProposal = {
 type ProposalSessionStore = {
   proposals: SessionProposal[];
   isReady: boolean;
+  discardedNotice: string | null;
+  dismissDiscardedNotice: () => void;
   addDraft: (payload: ProposalPayload) => SessionProposal;
   submitDraft: (proposalId: ProposalId) => ValidationResult<SessionProposal>;
   applyReviewAction: (
@@ -60,7 +72,27 @@ export function ProposalSessionStoreProvider({ children }: { children: ReactNode
     readServerSessionSnapshot,
   );
   const isReady = snapshot !== null;
-  const proposals = useMemo(() => readSessionProposalsFromSnapshot(snapshot), [snapshot]);
+  const { proposals, discardedNotice: hydrateNotice } = useMemo(
+    () => readSessionProposalsFromSnapshot(snapshot),
+    [snapshot],
+  );
+
+  const [legacyNotice, setLegacyNotice] = useState<string | null>(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    const v1Raw = window.sessionStorage.getItem(LEGACY_SESSION_PROPOSALS_STORAGE_KEY);
+    if (v1Raw !== null) {
+      window.sessionStorage.removeItem(LEGACY_SESSION_PROPOSALS_STORAGE_KEY);
+      window.sessionStorage.setItem(SESSION_PROPOSALS_DISCARD_NOTICE_SHOWN_KEY, "true");
+      return V1_DISCARD_MESSAGE;
+    }
+
+    return null;
+  });
+
+  const discardedNotice = hydrateNotice ?? legacyNotice;
 
   useEffect(() => {
     if (!isReady || snapshot === JSON.stringify(proposals)) {
@@ -81,20 +113,20 @@ export function ProposalSessionStoreProvider({ children }: { children: ReactNode
       updatedAt: now,
     };
 
-    writeSessionProposals([proposal, ...proposals]);
+    writeSessionProposals([proposal, ...readCurrentProposals()]);
     return proposal;
-  }, [proposals]);
+  }, []);
 
   const replaceProposal = useCallback((updated: SessionProposal) => {
     writeSessionProposals(
-      proposals.map((proposal) => (proposal.id === updated.id ? updated : proposal)),
+      readCurrentProposals().map((proposal) => (proposal.id === updated.id ? updated : proposal)),
     );
     return updated;
-  }, [proposals]);
+  }, []);
 
   const submitDraft = useCallback(
     (proposalId: ProposalId): ValidationResult<SessionProposal> => {
-      const proposal = proposals.find((candidate) => candidate.id === proposalId);
+      const proposal = readCurrentProposals().find((candidate) => candidate.id === proposalId);
       if (!proposal) {
         return missingProposalResult();
       }
@@ -111,12 +143,12 @@ export function ProposalSessionStoreProvider({ children }: { children: ReactNode
       });
       return { ok: true, value: updated };
     },
-    [proposals, replaceProposal],
+    [replaceProposal],
   );
 
   const applyReviewAction = useCallback(
     (proposalId: ProposalId, action: ReviewAction): ValidationResult<SessionProposal> => {
-      const proposal = proposals.find((candidate) => candidate.id === proposalId);
+      const proposal = readCurrentProposals().find((candidate) => candidate.id === proposalId);
       if (!proposal) {
         return missingProposalResult();
       }
@@ -133,29 +165,48 @@ export function ProposalSessionStoreProvider({ children }: { children: ReactNode
       });
       return { ok: true, value: updated };
     },
-    [proposals, replaceProposal],
+    [replaceProposal],
   );
 
   const getProposal = useCallback(
-    (proposalId: ProposalId) => proposals.find((proposal) => proposal.id === proposalId),
-    [proposals],
+    (proposalId: ProposalId) => readCurrentProposals().find((proposal) => proposal.id === proposalId),
+    [],
   );
 
   const clearSessionProposals = useCallback(() => {
     writeSessionProposals([]);
   }, []);
 
+  const dismissDiscardedNotice = useCallback(() => {
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem(SESSION_PROPOSALS_DISCARD_NOTICE_SHOWN_KEY, "true");
+    }
+    setLegacyNotice(null);
+  }, []);
+
   const value = useMemo<ProposalSessionStore>(
     () => ({
       proposals,
       isReady,
+      discardedNotice,
+      dismissDiscardedNotice,
       addDraft,
       submitDraft,
       applyReviewAction,
       getProposal,
       clearSessionProposals,
     }),
-    [addDraft, applyReviewAction, clearSessionProposals, getProposal, isReady, proposals, submitDraft],
+    [
+      addDraft,
+      applyReviewAction,
+      clearSessionProposals,
+      dismissDiscardedNotice,
+      discardedNotice,
+      getProposal,
+      isReady,
+      proposals,
+      submitDraft,
+    ],
   );
 
   return (
@@ -178,23 +229,46 @@ export function useProposalSessionStoreReady() {
   return useProposalSessionStore().isReady;
 }
 
-function readSessionProposalsFromSnapshot(rawValue: string | null): SessionProposal[] {
+export function useProposalSessionStoreNotice() {
+  const store = useProposalSessionStore();
+  return {
+    notice: store.discardedNotice,
+    dismiss: store.dismissDiscardedNotice,
+  };
+}
+
+function readCurrentProposals(): SessionProposal[] {
+  const snapshot =
+    typeof window === "undefined" ? null : window.sessionStorage.getItem(SESSION_PROPOSALS_STORAGE_KEY);
+  return readSessionProposalsFromSnapshot(snapshot).proposals;
+}
+
+function readSessionProposalsFromSnapshot(
+  rawValue: string | null,
+): { proposals: SessionProposal[]; discardedNotice: string | null } {
   if (!rawValue) {
-    return [];
+    return { proposals: [], discardedNotice: null };
   }
 
   try {
     const parsed = JSON.parse(rawValue);
     if (!Array.isArray(parsed)) {
-      return [];
+      return { proposals: [], discardedNotice: null };
     }
 
-    return parsed.flatMap((candidate) => {
+    let discardedNotice: string | null = null;
+    const proposals = parsed.flatMap((candidate) => {
       const result = normalizeSessionProposal(candidate);
-      return result.ok ? [result.value] : [];
+      if (!result.ok) {
+        discardedNotice = V1_DISCARD_MESSAGE;
+        return [];
+      }
+      return [result.value];
     });
+
+    return { proposals, discardedNotice };
   } catch {
-    return [];
+    return { proposals: [], discardedNotice: V1_DISCARD_MESSAGE };
   }
 }
 

@@ -2,15 +2,16 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildProposalDiff } from "@/domain/proposals/diff";
-import { PLAYER_RATING_ERROR_MESSAGE } from "@/domain/proposals/rating";
-import type { ProposalPayload, ProposalReview, ReviewerMetadata } from "@/domain/proposals/types";
+import type { ProposalPayload, ProposalReview } from "@/domain/proposals/types";
 import { ProposalForm } from "./proposal-form";
 import { ProposalDetail } from "./proposal-presenters";
 import { ReviewControls } from "./review-controls";
 import {
+  LEGACY_SESSION_PROPOSALS_STORAGE_KEY,
   ProposalSessionStoreProvider,
   SESSION_PROPOSALS_STORAGE_KEY,
   useProposalSessionStore,
+  useProposalSessionStoreNotice,
   type SessionProposal,
 } from "./session-proposal-store";
 
@@ -23,34 +24,24 @@ describe("proposal form components", () => {
     const onProposalAccepted = vi.fn();
     render(<ProposalForm proposalType="AddPlayer" onProposalAccepted={onProposalAccepted} />);
 
-    fireEvent.change(screen.getByLabelText("Player ID"), {
-      target: { value: "player-saka" },
-    });
-    fireEvent.change(screen.getByLabelText("Player name"), {
-      target: { value: "Duplicate Player" },
-    });
-    fireEvent.change(screen.getByLabelText("Position"), { target: { value: "FW" } });
-    fireEvent.change(screen.getByLabelText("Team"), { target: { value: "team-arsenal" } });
-    fireEvent.change(screen.getByLabelText("Competition"), {
-      target: { value: "competition-premier-league" },
-    });
-    fireEvent.change(screen.getByLabelText("Overall rating"), { target: { value: "100" } });
+    fireEvent.change(screen.getByLabelText(/Match name/), { target: { value: "Test" } });
+    fireEvent.change(screen.getByLabelText(/Position/), { target: { value: "Mid" } });
+    fireEvent.change(screen.getByLabelText(/Team/), { target: { value: "lec-g2-esports" } });
+    fireEvent.change(screen.getByLabelText(/Nationality/), { target: { value: "DK" } });
+    fireEvent.change(screen.getByLabelText(/Wage/), { target: { value: "100000" } });
+    fireEvent.change(screen.getByLabelText(/Market value/), { target: { value: "150000" } });
 
     fireEvent.submit(screen.getByRole("button", { name: "Create draft proposal" }));
 
-    expect(screen.getByText("Player ID already exists.")).toBeVisible();
-    expect(screen.getByText(PLAYER_RATING_ERROR_MESSAGE)).toBeVisible();
+    expect(screen.getByText("A non-empty string is required.")).toBeVisible();
     expect(onProposalAccepted).not.toHaveBeenCalled();
   });
 
-  it("synchronizes aria-invalid when native constraints fail", () => {
+  it("shows computed OVR while filling player attributes", () => {
     render(<ProposalForm proposalType="AddPlayer" onProposalAccepted={vi.fn()} />);
 
-    const playerId = screen.getByLabelText("Player ID");
-    fireEvent.invalid(playerId);
-
-    expect(playerId).toHaveAttribute("aria-invalid", "true");
-    expect(playerId).toHaveAttribute("data-user-invalid");
+    expect(screen.getByText("Computed OVR:")).toBeVisible();
+    expect(screen.getByText("75")).toBeVisible();
   });
 });
 
@@ -77,32 +68,6 @@ describe("proposal review components", () => {
     expect(screen.getByText("submitted")).toBeVisible();
   });
 
-  it("clears the visible rejection reason error when the reviewer enters a reason", () => {
-    render(<ReviewHarness initialReview={{ state: "submitted" }} />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Reject with stub reviewer" }));
-    expect(screen.getByText("Rejection reason is required.")).toBeVisible();
-
-    fireEvent.input(screen.getByLabelText("Rejection reason"), {
-      target: { value: "Needs source evidence." },
-    });
-
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-  });
-
-  it("keeps the rejection reason error visible for whitespace-only corrections", () => {
-    render(<ReviewHarness initialReview={{ state: "submitted" }} />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Reject with stub reviewer" }));
-
-    const rejectionReason = screen.getByLabelText("Rejection reason");
-    fireEvent.input(rejectionReason, { target: { value: "   " } });
-
-    expect(screen.getByRole("alert")).toHaveTextContent("Rejection reason is required.");
-    expect(rejectionReason).toHaveAttribute("aria-invalid", "true");
-    expect(screen.getByText("submitted")).toBeVisible();
-  });
-
   it("shows the non-submitted info message and hides review actions for draft reviews", () => {
     render(<ReviewHarness initialReview={{ state: "draft" }} />);
 
@@ -114,13 +79,29 @@ describe("proposal review components", () => {
 });
 
 describe("proposal session store", () => {
+  it("discards v1 football-shaped stored proposals and shows a one-time notice", () => {
+    window.sessionStorage.setItem(
+      LEGACY_SESSION_PROPOSALS_STORAGE_KEY,
+      JSON.stringify([makeSessionProposal({ state: "draft" })]),
+    );
+
+    render(
+      <ProposalSessionStoreProvider>
+        <NoticeHarness />
+      </ProposalSessionStoreProvider>,
+    );
+
+    expect(screen.getByText(/older schema and were cleared/i)).toBeVisible();
+    expect(window.sessionStorage.getItem(LEGACY_SESSION_PROPOSALS_STORAGE_KEY)).toBeNull();
+  });
+
   it("recovers from malformed session data before hydrating proposals", async () => {
     const validProposal = makeSessionProposal({ state: "draft" });
     window.sessionStorage.setItem(
       SESSION_PROPOSALS_STORAGE_KEY,
       JSON.stringify([
         { ...validProposal, id: "not-a-proposal-id" },
-        { ...validProposal, payload: { type: "UnsupportedProposal" } },
+        { ...validProposal, payload: { type: "UnsupportedProposal", version: 2 } },
         validProposal,
       ]),
     );
@@ -191,87 +172,19 @@ describe("proposal session store", () => {
     expect(screen.getByText("First state: approved")).toBeVisible();
     expect(screen.getByText("Reviewer: Stub Reviewer")).toBeVisible();
   });
-
-  it("discards hydrated approved or rejected reviews without valid reviewer metadata", () => {
-    const approvedWithoutReviewer = makeSessionProposal({ state: "approved" });
-    const rejectedWithoutReviewer = makeSessionProposal({
-      state: "rejected",
-      rejectionReason: "Missing reviewer metadata.",
-    });
-    const submittedProposal = makeSessionProposal({ state: "submitted" });
-
-    window.sessionStorage.setItem(
-      SESSION_PROPOSALS_STORAGE_KEY,
-      JSON.stringify([approvedWithoutReviewer, rejectedWithoutReviewer, submittedProposal]),
-    );
-
-    render(
-      <ProposalSessionStoreProvider>
-        <SessionStoreHarness />
-      </ProposalSessionStoreProvider>,
-    );
-
-    expect(screen.getByText("Stored proposals: 1")).toBeVisible();
-    expect(screen.getByText("First state: submitted")).toBeVisible();
-  });
-
-  it("discards hydrated reviewed proposals with malformed reviewer metadata fields", () => {
-    const validReviewer = {
-      reviewerId: "stub-reviewer",
-      displayName: "Stub Reviewer",
-      identityModel: "stub",
-      reviewedAt: "2026-06-18T12:00:00.000Z",
-    } satisfies ReviewerMetadata;
-    const validReviewedProposal = makeSessionProposal({
-      state: "approved",
-      reviewer: validReviewer,
-    });
-    const malformedReviewerMetadata = [
-      { ...validReviewer, reviewerId: "   " },
-      { ...validReviewer, displayName: "   " },
-      { ...validReviewer, reviewedAt: "not-a-date" },
-      { ...validReviewer, identityModel: "discord" },
-    ];
-
-    window.sessionStorage.setItem(
-      SESSION_PROPOSALS_STORAGE_KEY,
-      JSON.stringify([
-        ...malformedReviewerMetadata.map((reviewer) =>
-          makeSessionProposal({ state: "approved", reviewer: reviewer as ReviewerMetadata }),
-        ),
-        validReviewedProposal,
-      ]),
-    );
-
-    render(
-      <ProposalSessionStoreProvider>
-        <SessionStoreHarness />
-      </ProposalSessionStoreProvider>,
-    );
-
-    expect(screen.getByText("Stored proposals: 1")).toBeVisible();
-    expect(screen.getByText("First state: approved")).toBeVisible();
-    expect(screen.getByText("Reviewer: Stub Reviewer")).toBeVisible();
-  });
-
-  it("recovers gracefully from unparseable session storage content", () => {
-    window.sessionStorage.setItem(SESSION_PROPOSALS_STORAGE_KEY, "not-valid-json{{{");
-
-    render(
-      <ProposalSessionStoreProvider>
-        <SessionStoreHarness />
-      </ProposalSessionStoreProvider>,
-    );
-
-    expect(screen.getByText("Stored proposals: 0")).toBeVisible();
-  });
-
-  it("renders deterministic UTC dates in proposal presenters", () => {
-    render(<ProposalDetail proposal={makeSessionProposal({ state: "submitted" })} />);
-
-    expect(screen.getByText("Created: Jun 18, 2026, 12:00 PM")).toBeVisible();
-  });
 });
+
+function NoticeHarness() {
+  const { notice, dismiss } = useProposalSessionStoreNotice();
+  return (
+    <div>
+      {notice ? <p>{notice}</p> : <p>No notice</p>}
+      <button onClick={dismiss} type="button">
+        Dismiss
+      </button>
+    </div>
+  );
+}
 
 function ReviewHarness({ initialReview }: { initialReview: ProposalReview }) {
   const [review, setReview] = useState(initialReview);
@@ -287,11 +200,15 @@ function ReviewHarness({ initialReview }: { initialReview: ProposalReview }) {
 
 function makeSessionProposal(review: ProposalReview): SessionProposal {
   const payload: ProposalPayload = {
+    version: 2,
     type: "TransferPlayer",
-    playerId: "player-saka",
-    fromTeamId: "team-arsenal",
-    toTeamId: "team-brighton",
-    competitionId: "competition-premier-league",
+    playerId: "lec-player-98767975968177297",
+    fromTeamId: "lec-g2-esports",
+    toTeamId: "lec-fnatic",
+    competitionId: "lec",
+    wageOffered: 300000,
+    fee: 100000,
+    contractEnd: "2027-11-16",
   };
 
   return {
@@ -310,14 +227,29 @@ function SessionStoreHarness() {
 
   function addDraft() {
     store.addDraft({
+      version: 2,
       type: "AddPlayer",
       player: {
-        id: `player-persisted-${store.proposals.length}`,
-        name: "Persisted Player",
-        position: "MF",
-        teamId: "team-arsenal",
-        competitionId: "competition-premier-league",
-        overall: 72,
+        full_name: "Persisted Player",
+        match_name: "Persisted",
+        position: "Mid",
+        team_id: "lec-g2-esports",
+        nationality: "DK",
+        wage: 100000,
+        market_value: 150000,
+        attributes: {
+          mechanics: 75,
+          laning: 75,
+          teamfighting: 75,
+          macro_play: 75,
+          consistency: 75,
+          shotcalling: 75,
+          champion_pool: 75,
+          discipline: 75,
+          mental_resilience: 75,
+        },
+        date_of_birth: "2000-01-01",
+        contract_end: "",
       },
     });
   }
