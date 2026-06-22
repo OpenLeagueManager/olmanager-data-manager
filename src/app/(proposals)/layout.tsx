@@ -1,4 +1,5 @@
 import { Shell } from "@/components/layout/Shell";
+import { GameDataLoader } from "@/lib/data/game-data-loader";
 import type { ReactNode } from "react";
 
 export default function ProposalsLayout({
@@ -6,5 +7,9 @@ export default function ProposalsLayout({
 }: {
   children: ReactNode;
 }) {
-  return <Shell>{children}</Shell>;
+  return (
+    <Shell>
+      <GameDataLoader>{children}</GameDataLoader>
+    </Shell>
+  );
 }

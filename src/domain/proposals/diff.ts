@@ -1,19 +1,20 @@
-import { getEmbeddedCompetition, getEmbeddedSocialCatalog } from "@/data/olmanager/embedded";
 import { calculateLolOvr } from "@/data/olmanager/rating";
-import type { PlayerAttributes } from "@/data/olmanager/types";
+import type { PlayerAttributes, SocialTemplateData } from "@/data/olmanager/types";
+import type { CompetitionManifest, Player, Staff, Team } from "@/data/olmanager/types";
 import type { DiffRecord, ProposalPayload } from "./types";
 
-const game = getEmbeddedCompetition();
-const socialCatalog = getEmbeddedSocialCatalog();
-
-export function buildProposalDiff(proposal: ProposalPayload): DiffRecord[] {
+export function buildProposalDiff(
+  proposal: ProposalPayload,
+  game: { manifests: CompetitionManifest[]; teams: Team[]; players: Player[]; staff: Staff[] },
+  social: { templates: SocialTemplateData[] },
+): DiffRecord[] {
   switch (proposal.type) {
     case "AddPlayer":
       return [
         record("player.full_name", null, proposal.player.full_name),
         record("player.match_name", null, proposal.player.match_name),
         record("player.position", null, proposal.player.position),
-        record("player.team", null, teamName(proposal.player.team_id)),
+        record("player.team", null, teamName(game, proposal.player.team_id)),
         record("player.nationality", null, proposal.player.nationality),
         record("player.wage", null, proposal.player.wage),
         record("player.market_value", null, proposal.player.market_value),
@@ -68,7 +69,7 @@ export function buildProposalDiff(proposal: ProposalPayload): DiffRecord[] {
       const records: DiffRecord[] = [];
       if (player.team_id !== proposal.toTeamId) {
         records.push(
-          record("player.team", teamName(player.team_id), teamName(proposal.toTeamId), "warning"),
+          record("player.team", teamName(game, player.team_id), teamName(game, proposal.toTeamId), "warning"),
         );
       }
       records.push(record("transfer.fee", null, proposal.fee));
@@ -81,7 +82,7 @@ export function buildProposalDiff(proposal: ProposalPayload): DiffRecord[] {
         record("staff.first_name", null, proposal.staff.first_name),
         record("staff.last_name", null, proposal.staff.last_name),
         record("staff.role", null, proposal.staff.role),
-        record("staff.team", null, teamName(proposal.staff.team_id)),
+        record("staff.team", null, teamName(game, proposal.staff.team_id)),
         record("staff.nationality", null, proposal.staff.nationality),
         record("staff.wage", null, proposal.staff.wage),
         record("staff.contract_end", null, proposal.staff.contract_end || "None"),
@@ -102,7 +103,7 @@ export function buildProposalDiff(proposal: ProposalPayload): DiffRecord[] {
       if (proposal.changes.attributes) {
         records.push(
           ...staffAttributeRecords(
-            staff.attributes,
+            staff.attributes ?? null,
             proposal.changes.attributes,
             "changes.attributes",
           ),
@@ -140,14 +141,15 @@ export function buildProposalDiff(proposal: ProposalPayload): DiffRecord[] {
       return records;
     }
     case "EditCompetition": {
-      if (proposal.competitionId !== game.manifest.id) {
+      const comp = game.manifests.find((m) => m.id === proposal.competitionId);
+      if (!comp) {
         return [record("competition", null, proposal.competitionId, "warning")];
       }
 
       const records: DiffRecord[] = [];
       for (const key of ["name", "full_name", "logo", "tier", "active"] as const) {
-        if (key in proposal.changes && game.manifest[key] !== proposal.changes[key]) {
-          records.push(record(`changes.${key}`, game.manifest[key], proposal.changes[key]));
+        if (key in proposal.changes && (comp as Record<string, unknown>)[key] !== proposal.changes[key]) {
+          records.push(record(`changes.${key}`, (comp as Record<string, unknown>)[key], proposal.changes[key]));
         }
       }
       return records;
@@ -163,7 +165,7 @@ export function buildProposalDiff(proposal: ProposalPayload): DiffRecord[] {
         record("account.active", null, proposal.account.active),
       ];
     case "EditSocialTemplate": {
-      const template = socialCatalog.templates.find(
+      const template = social.templates.find(
         (candidate) => candidate.id === proposal.templateId,
       );
       if (!template) {
@@ -236,7 +238,10 @@ function record(
   return { field, before, after, severity };
 }
 
-function teamName(teamId: string): string {
+function teamName(
+  game: { teams: Team[] },
+  teamId: string,
+): string {
   return game.teams.find((team) => team.id === teamId)?.name ?? teamId;
 }
 

@@ -2,13 +2,32 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildProposalDiff } from "@/domain/proposals/diff";
-import type { ProposalId, ProposalPayload } from "@/domain/proposals/types";
+import type { DiffRecord, ProposalId, ProposalPayload, ProposalReview } from "@/domain/proposals/types";
+import { GameDataProvider, type GameDataSet, type SocialDataSet } from "@/lib/data/game-data-context";
 import NewProposalPage from "@/app/(proposals)/proposals/new/[type]/page";
 import { NewProposalRoute, ProposalDetailRoute, ProposalsRoute } from "./proposal-routes";
 import {
   SESSION_PROPOSALS_STORAGE_KEY,
   type SessionProposal,
 } from "./session-proposal-store";
+
+const EMPTY_GAME: GameDataSet = { manifests: [], teams: [], players: [], staff: [] };
+const EMPTY_SOCIAL: SocialDataSet = { accounts: [], templates: [] };
+const ALWAYS_OK_VALIDATE = (input: unknown) => ({ ok: true, value: input }) as { ok: true; value: ProposalPayload };
+const STUB_DIFF = () => [] as DiffRecord[];
+
+function GameDataWrapper({ children }: { children: React.ReactNode }) {
+  return (
+    <GameDataProvider
+      game={EMPTY_GAME}
+      social={EMPTY_SOCIAL}
+      validateProposal={ALWAYS_OK_VALIDATE}
+      buildProposalDiff={STUB_DIFF}
+    >
+      {children}
+    </GameDataProvider>
+  );
+}
 
 const navigationMocks = vi.hoisted(() => ({
   notFound: vi.fn(() => {
@@ -36,11 +55,11 @@ describe("proposal routes", () => {
       JSON.stringify([makeSessionProposal({ id: "proposal-route-list" as ProposalId })]),
     );
 
-    const serverMarkup = renderToString(<ProposalsRoute />);
+    const serverMarkup = renderToString(<GameDataWrapper><ProposalsRoute /></GameDataWrapper>);
     expect(serverMarkup).toContain("No session proposals yet.");
     expect(serverMarkup).not.toContain("proposal-route-list");
 
-    render(<ProposalsRoute />);
+    render(<GameDataWrapper><ProposalsRoute /></GameDataWrapper>);
 
     await waitFor(() => {
       expect(screen.getByText("Transfer lec-player-98767975968177297")).toBeVisible();
@@ -51,7 +70,7 @@ describe("proposal routes", () => {
   it("creates a draft proposal and redirects to the detail route", async () => {
     vi.spyOn(globalThis.crypto, "randomUUID").mockReturnValue("route-test-id");
 
-    render(<NewProposalRoute proposalType="AddPlayer" />);
+    render(<GameDataWrapper><NewProposalRoute proposalType="AddPlayer" /></GameDataWrapper>);
 
     fireEvent.change(screen.getByLabelText(/Full name/), { target: { value: "Route Test" } });
     fireEvent.change(screen.getByLabelText(/Match name/), { target: { value: "RouteTest" } });
@@ -86,13 +105,13 @@ describe("proposal routes", () => {
     );
 
     const serverMarkup = renderToString(
-      <ProposalDetailRoute proposalId="proposal-route-detail" />,
+      <GameDataWrapper><ProposalDetailRoute proposalId="proposal-route-detail" /></GameDataWrapper>,
     );
     expect(serverMarkup).toContain("Loading session proposal");
     expect(serverMarkup).not.toContain("Proposal not found in this session");
     expect(serverMarkup).not.toContain("proposal-route-detail");
 
-    render(<ProposalDetailRoute proposalId="proposal-route-detail" />);
+    render(<GameDataWrapper><ProposalDetailRoute proposalId="proposal-route-detail" /></GameDataWrapper>);
 
     await waitFor(() => {
       expect(screen.getByText("Transfer lec-player-98767975968177297")).toBeVisible();
@@ -101,11 +120,11 @@ describe("proposal routes", () => {
   });
 
   it("shows missing proposal detail state only after session hydration completes", async () => {
-    const serverMarkup = renderToString(<ProposalDetailRoute proposalId="proposal-missing" />);
+    const serverMarkup = renderToString(<GameDataWrapper><ProposalDetailRoute proposalId="proposal-missing" /></GameDataWrapper>);
     expect(serverMarkup).toContain("Loading session proposal");
     expect(serverMarkup).not.toContain("Proposal not found in this session");
 
-    render(<ProposalDetailRoute proposalId="proposal-missing" />);
+    render(<GameDataWrapper><ProposalDetailRoute proposalId="proposal-missing" /></GameDataWrapper>);
 
     await waitFor(() => {
       expect(screen.getByText("Proposal not found in this session")).toBeVisible();
@@ -130,7 +149,7 @@ function makeSessionProposal({ id }: { id: ProposalId }): SessionProposal {
     id,
     payload,
     review: { state: "submitted" },
-    diff: buildProposalDiff(payload),
+    diff: buildProposalDiff(payload, { manifests: [], teams: [], players: [], staff: [] }, { templates: [] }),
     createdAt: "2026-06-18T12:00:00.000Z",
     updatedAt: "2026-06-18T12:00:00.000Z",
   };

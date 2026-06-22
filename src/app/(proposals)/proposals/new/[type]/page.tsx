@@ -8,17 +8,19 @@ export const metadata: Metadata = {
   description: "Create a typed, canonical-data-backed OLManager data proposal.",
 };
 
-export default async function NewProposalPage({
-  params,
-}: {
+type Props = {
   params: Promise<{ type: string }>;
-}) {
+  searchParams?: Promise<{ entityId?: string }>;
+};
+
+export default async function NewProposalPage({ params, searchParams }: Props) {
   const { type } = await params;
+  const { entityId } = await (searchParams ?? Promise.resolve({ entityId: undefined }));
   const proposalType = parseProposalType(type);
 
   if (!proposalType.ok) {
     notFound();
   }
 
-  return <NewProposalRoute proposalType={proposalType.value} />;
+  return <NewProposalRoute proposalType={proposalType.value} initialEntityId={entityId} />;
 }

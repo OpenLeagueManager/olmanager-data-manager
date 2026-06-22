@@ -85,3 +85,23 @@ Excluded from the first slice:
 - ZIP export generation.
 
 These exclusions are intentional. The first slice should validate the typed-proposal model and review experience before integrating external identity, repository automation, or import/export tooling.
+
+## Explorer Surface
+
+A read-only explorer surface at `/data/*` makes the raw `src/data/` corpus inspectable before contributors propose changes.
+
+### Route topology
+
+- `/data` — competition browser with aggregate stat line and tier badges.
+- `/data/competitions/[id]` — paginated team table for a competition.
+- `/data/teams/[id]` — team detail with roster DataTable (players + staff).
+- `/data/players/[id]` — player detail with attribute grid and OVR.
+- `/data/staff/[id]` — staff detail with attribute grid.
+
+### Loader and accessors
+
+The loader layer lives in `src/data/olmanager/` and aggregates manifests, teams, players, staff, social accounts/templates, news templates, and message senders/triggers via `import.meta.glob`. Domain accessors in `src/lib/data/*` provide typed `list*()`, `get*()`, and collection-specific helpers that are shared between the explorer and the proposal forms.
+
+### Proposal deep-linking
+
+Detail pages expose contextual "Propose change" buttons that link to `/proposals/new/[type]?entityId=...`. The proposal form pre-fills the matching entity select from `entityId` so the contributor starts from the referenced record.

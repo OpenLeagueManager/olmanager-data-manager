@@ -1,8 +1,12 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildProposalDiff } from "@/domain/proposals/diff";
-import type { ProposalPayload, ProposalReview } from "@/domain/proposals/types";
+import { createValidator } from "@/domain/proposals/validation";
+import type { DiffRecord, ProposalPayload, ProposalReview } from "@/domain/proposals/types";
+import type { GameDataSet, SocialDataSet } from "@/lib/data/game-data-context";
+import { GameDataProvider } from "@/lib/data/game-data-context";
+import { getEmbeddedCompetition, getEmbeddedSocialCatalog } from "@/data/olmanager/embedded";
 import { ProposalForm } from "./proposal-form";
 import { ProposalDetail } from "./proposal-presenters";
 import { ReviewControls } from "./review-controls";
@@ -15,6 +19,61 @@ import {
   type SessionProposal,
 } from "./session-proposal-store";
 
+const EMPTY_GAME: GameDataSet = { manifests: [], teams: [], players: [], staff: [] };
+const EMPTY_SOCIAL: SocialDataSet = { accounts: [], templates: [] };
+const STUB_DIFF = () => [] as DiffRecord[];
+
+// Real game data provider for form tests that need field validation
+function buildGameValidator() {
+  try {
+    const comp = getEmbeddedCompetition();
+    const social = getEmbeddedSocialCatalog();
+    const game: GameDataSet = { manifests: comp.manifests, teams: comp.teams, players: comp.players, staff: comp.staff };
+    const socialData: SocialDataSet = { accounts: social.accounts, templates: social.templates };
+    const { validateProposal } = createValidator(game, socialData);
+    const buildDiff = (proposal: ProposalPayload) => buildProposalDiff(proposal, game, socialData);
+    return { game, social: socialData, validateProposal, buildDiff } as const;
+  } catch {
+    return null;
+  }
+}
+
+const GAME_V = buildGameValidator();
+const REAL_PROPS = GAME_V
+  ? GAME_V
+  : { game: EMPTY_GAME, social: EMPTY_SOCIAL, validateProposal: (() => ({ ok: true, value: undefined }) as unknown) as ReturnType<typeof createValidator>["validateProposal"], buildDiff: STUB_DIFF };
+
+function GameDataWrapper({ children }: { children: ReactNode }) {
+  return (
+    <GameDataProvider
+      game={REAL_PROPS.game}
+      social={REAL_PROPS.social}
+      validateProposal={REAL_PROPS.validateProposal}
+      buildProposalDiff={REAL_PROPS.buildDiff}
+    >
+      {children}
+    </GameDataProvider>
+  );
+}
+
+// Minimal validator for session store tests
+const SESSION_VALIDATE = (input: unknown) => {
+  const obj = input as Record<string, unknown> | null;
+  if (!obj || typeof obj !== "object") return { ok: false as const, errors: [{ field: "payload", message: "not an object" }] };
+  if (typeof obj.type !== "string") return { ok: false as const, errors: [{ field: "type", message: "missing type" }] };
+  const known = ["AddPlayer", "EditPlayer", "TransferPlayer", "AddStaff", "EditStaff", "ReleaseStaff", "EditTeam", "EditCompetition", "AddSocialAccount", "EditSocialTemplate", "AddNewsTemplate"];
+  if (!known.includes(obj.type)) return { ok: false as const, errors: [{ field: "type", message: `unknown type: ${obj.type}` }] };
+  return { ok: true, value: input } as { ok: true; value: ProposalPayload };
+};
+
+function SessionStoreWrapper({ children }: { children: ReactNode }) {
+  return (
+    <GameDataProvider game={EMPTY_GAME} social={EMPTY_SOCIAL} validateProposal={SESSION_VALIDATE} buildProposalDiff={STUB_DIFF}>
+      <ProposalSessionStoreProvider>{children}</ProposalSessionStoreProvider>
+    </GameDataProvider>
+  );
+}
+
 afterEach(() => {
   window.sessionStorage.clear();
 });
@@ -22,7 +81,7 @@ afterEach(() => {
 describe("proposal form components", () => {
   it("shows domain field errors for invalid AddPlayer form values", () => {
     const onProposalAccepted = vi.fn();
-    render(<ProposalForm proposalType="AddPlayer" onProposalAccepted={onProposalAccepted} />);
+    render(<GameDataWrapper><ProposalForm proposalType="AddPlayer" onProposalAccepted={onProposalAccepted} /></GameDataWrapper>);
 
     fireEvent.change(screen.getByLabelText(/Match name/), { target: { value: "Test" } });
     fireEvent.change(screen.getByLabelText(/Position/), { target: { value: "Mid" } });
@@ -38,7 +97,7 @@ describe("proposal form components", () => {
   });
 
   it("shows computed OVR while filling player attributes", () => {
-    render(<ProposalForm proposalType="AddPlayer" onProposalAccepted={vi.fn()} />);
+    render(<GameDataWrapper><ProposalForm proposalType="AddPlayer" onProposalAccepted={vi.fn()} /></GameDataWrapper>);
 
     expect(screen.getByText("Computed OVR:")).toBeVisible();
     expect(screen.getByText("75")).toBeVisible();
@@ -54,7 +113,7 @@ describe("proposal form components", () => {
 
     for (const proposalType of types) {
       const { unmount } = render(
-        <ProposalForm proposalType={proposalType} onProposalAccepted={vi.fn()} />,
+        <GameDataWrapper><ProposalForm proposalType={proposalType} onProposalAccepted={vi.fn()} /></GameDataWrapper>,
       );
       expect(screen.getByRole("button", { name: "Create draft proposal" })).toBeVisible();
       unmount();
@@ -63,7 +122,7 @@ describe("proposal form components", () => {
 
   it("creates an EditCompetition proposal from the form", () => {
     const onProposalAccepted = vi.fn();
-    render(<ProposalForm proposalType="EditCompetition" onProposalAccepted={onProposalAccepted} />);
+    render(<GameDataWrapper><ProposalForm proposalType="EditCompetition" onProposalAccepted={onProposalAccepted} /></GameDataWrapper>);
 
     fireEvent.change(screen.getByLabelText(/Competition/), { target: { value: "lec" } });
     fireEvent.change(screen.getByLabelText(/Name/), { target: { value: "LEC 2026" } });
@@ -79,7 +138,7 @@ describe("proposal form components", () => {
 
   it("shows favorite team ID errors on the AddSocialAccount form", () => {
     const onProposalAccepted = vi.fn();
-    render(<ProposalForm proposalType="AddSocialAccount" onProposalAccepted={onProposalAccepted} />);
+    render(<GameDataWrapper><ProposalForm proposalType="AddSocialAccount" onProposalAccepted={onProposalAccepted} /></GameDataWrapper>);
 
     fireEvent.change(screen.getByLabelText(/Language/), { target: { value: "en" } });
     fireEvent.change(screen.getByLabelText(/Display name/), { target: { value: "New Fan" } });
@@ -96,7 +155,7 @@ describe("proposal form components", () => {
 
   it("creates an AddSocialAccount proposal with active defaulting to true", () => {
     const onProposalAccepted = vi.fn();
-    render(<ProposalForm proposalType="AddSocialAccount" onProposalAccepted={onProposalAccepted} />);
+    render(<GameDataWrapper><ProposalForm proposalType="AddSocialAccount" onProposalAccepted={onProposalAccepted} /></GameDataWrapper>);
 
     fireEvent.change(screen.getByLabelText(/Language/), { target: { value: "en" } });
     fireEvent.change(screen.getByLabelText(/Display name/), { target: { value: "New Fan" } });
@@ -124,7 +183,7 @@ describe("proposal form components", () => {
 
   it("creates an EditSocialTemplate proposal from the form", () => {
     const onProposalAccepted = vi.fn();
-    render(<ProposalForm proposalType="EditSocialTemplate" onProposalAccepted={onProposalAccepted} />);
+    render(<GameDataWrapper><ProposalForm proposalType="EditSocialTemplate" onProposalAccepted={onProposalAccepted} /></GameDataWrapper>);
 
     fireEvent.change(screen.getByLabelText(/Social template/), {
       target: { value: "team-banter-en-1" },
@@ -142,7 +201,7 @@ describe("proposal form components", () => {
 
   it("creates an AddNewsTemplate proposal with body_variants", () => {
     const onProposalAccepted = vi.fn();
-    render(<ProposalForm proposalType="AddNewsTemplate" onProposalAccepted={onProposalAccepted} />);
+    render(<GameDataWrapper><ProposalForm proposalType="AddNewsTemplate" onProposalAccepted={onProposalAccepted} /></GameDataWrapper>);
 
     fireEvent.change(screen.getByLabelText(/Category/), { target: { value: "Editorial" } });
     fireEvent.change(screen.getByLabelText(/Headline key/), { target: { value: "be.news.test.headline" } });
@@ -171,7 +230,7 @@ describe("proposal form components", () => {
 
   it("shows a body error when AddNewsTemplate form has neither body nor body_variants", () => {
     const onProposalAccepted = vi.fn();
-    render(<ProposalForm proposalType="AddNewsTemplate" onProposalAccepted={onProposalAccepted} />);
+    render(<GameDataWrapper><ProposalForm proposalType="AddNewsTemplate" onProposalAccepted={onProposalAccepted} /></GameDataWrapper>);
 
     fireEvent.change(screen.getByLabelText(/Category/), { target: { value: "Editorial" } });
     fireEvent.change(screen.getByLabelText(/Headline key/), { target: { value: "be.news.test.headline" } });
@@ -226,9 +285,9 @@ describe("proposal session store", () => {
     );
 
     render(
-      <ProposalSessionStoreProvider>
+      <SessionStoreWrapper>
         <NoticeHarness />
-      </ProposalSessionStoreProvider>,
+      </SessionStoreWrapper>,
     );
 
     expect(screen.getByText(/older schema and were cleared/i)).toBeVisible();
@@ -247,9 +306,9 @@ describe("proposal session store", () => {
     );
 
     render(
-      <ProposalSessionStoreProvider>
+      <SessionStoreWrapper>
         <SessionStoreHarness />
-      </ProposalSessionStoreProvider>,
+      </SessionStoreWrapper>,
     );
 
     expect(screen.getByText("Stored proposals: 1")).toBeVisible();
@@ -267,9 +326,9 @@ describe("proposal session store", () => {
 
   it("persists, restores, and clears session-backed proposals", async () => {
     const { unmount } = render(
-      <ProposalSessionStoreProvider>
+      <SessionStoreWrapper>
         <SessionStoreHarness />
-      </ProposalSessionStoreProvider>,
+      </SessionStoreWrapper>,
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Add draft" }));
@@ -283,9 +342,9 @@ describe("proposal session store", () => {
     unmount();
 
     render(
-      <ProposalSessionStoreProvider>
+      <SessionStoreWrapper>
         <SessionStoreHarness />
-      </ProposalSessionStoreProvider>,
+      </SessionStoreWrapper>,
     );
 
     expect(screen.getByText("Stored proposals: 1")).toBeVisible();
@@ -300,9 +359,9 @@ describe("proposal session store", () => {
 
   it("records stub reviewer metadata when approving a submitted proposal", () => {
     render(
-      <ProposalSessionStoreProvider>
+      <SessionStoreWrapper>
         <SessionStoreHarness />
-      </ProposalSessionStoreProvider>,
+      </SessionStoreWrapper>,
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Add draft" }));
@@ -355,7 +414,7 @@ function makeSessionProposal(review: ProposalReview): SessionProposal {
     id: "proposal-component-test",
     payload,
     review,
-    diff: buildProposalDiff(payload),
+    diff: buildProposalDiff(payload, { manifests: [], teams: [], players: [], staff: [] }, { templates: [] }),
     createdAt: "2026-06-18T12:00:00.000Z",
     updatedAt: "2026-06-18T12:00:00.000Z",
   };

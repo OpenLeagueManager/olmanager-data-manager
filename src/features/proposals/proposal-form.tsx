@@ -1,10 +1,6 @@
 "use client";
 
 import { useId, useMemo, useState, type FormEvent } from "react";
-import {
-  getEmbeddedCompetition,
-  getEmbeddedSocialCatalog,
-} from "@/data/olmanager/embedded";
 import { calculateLolOvr, PLAYER_RATING_HINT } from "@/data/olmanager/rating";
 import {
   LOL_ROLES,
@@ -14,22 +10,22 @@ import {
 } from "@/data/olmanager/types";
 import { PROPOSAL_TYPE_METADATA } from "@/domain/proposals/metadata";
 import type { FieldError, ProposalPayload, ProposalType } from "@/domain/proposals/types";
-import { validateProposal } from "@/domain/proposals/validation";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { RoleChip } from "@/components/ui/role-chip";
 import { Select } from "@/components/ui/select";
+import { useGameData } from "@/lib/data/game-data-context";
 import styles from "./proposal-ui.module.css";
-
-const game = getEmbeddedCompetition();
-const socialCatalog = getEmbeddedSocialCatalog();
 
 type ProposalFormProps = {
   proposalType: ProposalType;
   onProposalAccepted: (proposal: ProposalPayload) => void;
+  initialEntityId?: string;
 };
 
-export function ProposalForm({ proposalType, onProposalAccepted }: ProposalFormProps) {
+export function ProposalForm({ proposalType, onProposalAccepted, initialEntityId }: ProposalFormProps) {
+  const { validateProposal } = useGameData();
+  const [prefill] = useState(initialEntityId);
   const [errors, setErrors] = useState<FieldError[]>([]);
   const titleId = useId();
   const errorMap = useMemo(() => groupErrorsByField(errors), [errors]);
@@ -56,17 +52,17 @@ export function ProposalForm({ proposalType, onProposalAccepted }: ProposalFormP
         <p className={styles.hint}>
           Browser constraints guide the form, but typed proposal validation is the source of truth.
         </p>
-        {proposalType === "AddPlayer" ? <AddPlayerFields errors={errorMap} /> : null}
-        {proposalType === "EditPlayer" ? <EditPlayerFields errors={errorMap} /> : null}
-        {proposalType === "TransferPlayer" ? <TransferPlayerFields errors={errorMap} /> : null}
-        {proposalType === "AddStaff" ? <AddStaffFields errors={errorMap} /> : null}
-        {proposalType === "EditStaff" ? <EditStaffFields errors={errorMap} /> : null}
-        {proposalType === "ReleaseStaff" ? <ReleaseStaffFields errors={errorMap} /> : null}
-        {proposalType === "EditTeam" ? <EditTeamFields errors={errorMap} /> : null}
-        {proposalType === "EditCompetition" ? <EditCompetitionFields errors={errorMap} /> : null}
-        {proposalType === "AddSocialAccount" ? <AddSocialAccountFields errors={errorMap} /> : null}
-        {proposalType === "EditSocialTemplate" ? <EditSocialTemplateFields errors={errorMap} /> : null}
-        {proposalType === "AddNewsTemplate" ? <AddNewsTemplateFields errors={errorMap} /> : null}
+      {proposalType === "AddPlayer" ? <AddPlayerFields errors={errorMap} /> : null}
+      {proposalType === "EditPlayer" ? <EditPlayerFields errors={errorMap} initialEntityId={prefill} /> : null}
+      {proposalType === "TransferPlayer" ? <TransferPlayerFields errors={errorMap} initialEntityId={prefill} /> : null}
+      {proposalType === "AddStaff" ? <AddStaffFields errors={errorMap} /> : null}
+      {proposalType === "EditStaff" ? <EditStaffFields errors={errorMap} initialEntityId={prefill} /> : null}
+      {proposalType === "ReleaseStaff" ? <ReleaseStaffFields errors={errorMap} initialEntityId={prefill} /> : null}
+      {proposalType === "EditTeam" ? <EditTeamFields errors={errorMap} initialEntityId={prefill} /> : null}
+      {proposalType === "EditCompetition" ? <EditCompetitionFields errors={errorMap} initialEntityId={prefill} /> : null}
+      {proposalType === "AddSocialAccount" ? <AddSocialAccountFields errors={errorMap} /> : null}
+      {proposalType === "EditSocialTemplate" ? <EditSocialTemplateFields errors={errorMap} initialEntityId={prefill} /> : null}
+      {proposalType === "AddNewsTemplate" ? <AddNewsTemplateFields errors={errorMap} /> : null}
       </fieldset>
       <div className={styles.buttonRow}>
         <Button type="submit" variant="primary">
@@ -127,39 +123,47 @@ function AddPlayerFields({ errors }: { errors: ErrorMap }) {
   );
 }
 
-function EditPlayerFields({ errors }: { errors: ErrorMap }) {
+function EditPlayerFields({ errors, initialEntityId }: { errors: ErrorMap; initialEntityId?: string }) {
+  const { game } = useGameData();
+  const player = initialEntityId ? game.players.find((p) => p.id === initialEntityId) : undefined;
+
   return (
     <>
-      <PlayerSelect error={errors.playerId} name="playerId" required />
-      <TextField error={errors["changes.full_name"]} label="Full name" name="changes.full_name" />
-      <TextField error={errors["changes.match_name"]} label="Match name" name="changes.match_name" />
-      <RoleSelect error={errors["changes.position"]} includeBlank name="changes.position" />
-      <TextField error={errors["changes.nationality"]} label="Nationality" name="changes.nationality" />
-      <NumberField error={errors["changes.wage"]} label="Wage" name="changes.wage" />
-      <NumberField error={errors["changes.market_value"]} label="Market value" name="changes.market_value" />
-      <TextField error={errors["changes.contract_end"]} label="Contract end" name="changes.contract_end" type="date" />
-      <TriStateSelect error={errors["changes.transfer_listed"]} label="Transfer listed" name="changes.transfer_listed" />
-      <TriStateSelect error={errors["changes.loan_listed"]} label="Loan listed" name="changes.loan_listed" />
+      <PlayerSelect error={errors.playerId} name="playerId" required defaultValue={initialEntityId} />
+      <TextField error={errors["changes.full_name"]} label="Full name" name="changes.full_name" defaultValue={player?.full_name} />
+      <TextField error={errors["changes.match_name"]} label="Match name" name="changes.match_name" defaultValue={player?.match_name} />
+      <RoleSelect error={errors["changes.position"]} includeBlank name="changes.position" label="Position (current)" defaultValue={player?.position} />
+      <RoleSelect error={errors["changes.natural_position"]} includeBlank name="changes.natural_position" label="Natural position" defaultValue={player?.natural_position} />
+      <TextField error={errors["changes.nationality"]} label="Nationality" name="changes.nationality" defaultValue={player?.nationality} />
+      <NumberField error={errors["changes.wage"]} label="Wage" name="changes.wage" defaultValue={player?.wage} />
+      <NumberField error={errors["changes.market_value"]} label="Market value" name="changes.market_value" defaultValue={player?.market_value} />
+      <TextField error={errors["changes.contract_end"]} label="Contract end" name="changes.contract_end" type="date" defaultValue={player?.contract_end} />
+      <TriStateSelect error={errors["changes.transfer_listed"]} label="Transfer listed" name="changes.transfer_listed" defaultValue={player?.transfer_listed === true ? "true" : player?.transfer_listed === false ? "false" : undefined} />
+      <TriStateSelect error={errors["changes.loan_listed"]} label="Loan listed" name="changes.loan_listed" defaultValue={player?.loan_listed === true ? "true" : player?.loan_listed === false ? "false" : undefined} />
       <PartialAttributesField
         errorPrefix="changes.attributes"
         errors={errors}
         keys={PLAYER_ATTRIBUTE_KEYS as unknown as string[]}
         labelPrefix="Player"
+        defaultValues={player?.attributes as Record<string, string | number> | undefined}
       />
     </>
   );
 }
 
-function TransferPlayerFields({ errors }: { errors: ErrorMap }) {
+function TransferPlayerFields({ errors, initialEntityId }: { errors: ErrorMap; initialEntityId?: string }) {
+  const { game } = useGameData();
+  const player = initialEntityId ? game.players.find((p) => p.id === initialEntityId) : undefined;
+
   return (
     <>
-      <PlayerSelect error={errors.playerId} name="playerId" required />
-      <TeamSelect error={errors.fromTeamId} label="Source team" name="fromTeamId" required />
+      <PlayerSelect error={errors.playerId} name="playerId" required defaultValue={initialEntityId} />
+      <TeamSelect error={errors.fromTeamId} label="Source team" name="fromTeamId" required defaultValue={player?.team_id} />
       <TeamSelect error={errors.toTeamId} label="Destination team" name="toTeamId" required />
       <CompetitionSelect error={errors.competitionId} name="competitionId" required />
-      <NumberField error={errors.wageOffered} label="Wage offered" name="wageOffered" required />
+      <NumberField error={errors.wageOffered} label="Wage offered" name="wageOffered" required defaultValue={player?.wage} />
       <NumberField error={errors.fee} label="Fee" name="fee" required />
-      <TextField error={errors.contractEnd} label="Contract end" name="contractEnd" required type="date" />
+      <TextField error={errors.contractEnd} label="Contract end" name="contractEnd" required type="date" defaultValue={player?.contract_end} />
     </>
   );
 }
@@ -192,28 +196,32 @@ function AddStaffFields({ errors }: { errors: ErrorMap }) {
   );
 }
 
-function EditStaffFields({ errors }: { errors: ErrorMap }) {
+function EditStaffFields({ errors, initialEntityId }: { errors: ErrorMap; initialEntityId?: string }) {
+  const { game } = useGameData();
+  const staff = initialEntityId ? game.staff.find((s) => s.id === initialEntityId) : undefined;
+
   return (
     <>
-      <StaffSelect error={errors.staffId} name="staffId" required />
-      <TextField error={errors["changes.role"]} label="Role" name="changes.role" />
-      <NumberField error={errors["changes.wage"]} label="Wage" name="changes.wage" />
-      <TextField error={errors["changes.contract_end"]} label="Contract end" name="changes.contract_end" type="date" />
+      <StaffSelect error={errors.staffId} name="staffId" required defaultValue={initialEntityId} />
+      <TextField error={errors["changes.role"]} label="Role" name="changes.role" defaultValue={staff?.role} />
+      <NumberField error={errors["changes.wage"]} label="Wage" name="changes.wage" defaultValue={typeof staff?.wage === "number" ? staff.wage : undefined} />
+      <TextField error={errors["changes.contract_end"]} label="Contract end" name="changes.contract_end" type="date" defaultValue={staff?.contract_end} />
       <PartialAttributesField
         errorPrefix="changes.attributes"
         errors={errors}
         keys={STAFF_ATTRIBUTE_KEYS as unknown as string[]}
         labelPrefix="Staff"
+        defaultValues={staff?.attributes as Record<string, string | number> | undefined}
       />
     </>
   );
 }
 
-function ReleaseStaffFields({ errors }: { errors: ErrorMap }) {
+function ReleaseStaffFields({ errors, initialEntityId }: { errors: ErrorMap; initialEntityId?: string }) {
   const reasonId = useId();
   return (
     <>
-      <StaffSelect error={errors.staffId} name="staffId" required />
+      <StaffSelect error={errors.staffId} name="staffId" required defaultValue={initialEntityId} />
       <Field error={errors.reason} htmlFor={reasonId} label="Reason" required>
         <Select
           id={reasonId}
@@ -232,35 +240,42 @@ function ReleaseStaffFields({ errors }: { errors: ErrorMap }) {
   );
 }
 
-function EditTeamFields({ errors }: { errors: ErrorMap }) {
+function EditTeamFields({ errors, initialEntityId }: { errors: ErrorMap; initialEntityId?: string }) {
+  const { game } = useGameData();
+  const team = initialEntityId ? game.teams.find((t) => t.id === initialEntityId) : undefined;
+
   return (
     <>
-      <TeamSelect error={errors.teamId} name="teamId" required />
-      <TextField error={errors["changes.name"]} label="Name" name="changes.name" />
-      <TextField error={errors["changes.short_name"]} label="Short name" name="changes.short_name" />
-      <NumberField error={errors["changes.wage_budget"]} label="Wage budget" name="changes.wage_budget" />
-      <NumberField error={errors["changes.transfer_budget"]} label="Transfer budget" name="changes.transfer_budget" />
-      <TextField error={errors["changes.training_focus"]} label="Training focus" name="changes.training_focus" />
-      <TextField error={errors["changes.training_intensity"]} label="Training intensity" name="changes.training_intensity" />
+      <TeamSelect error={errors.teamId} name="teamId" required defaultValue={initialEntityId} />
+      <TextField error={errors["changes.name"]} label="Name" name="changes.name" defaultValue={team?.name} />
+      <TextField error={errors["changes.short_name"]} label="Short name" name="changes.short_name" defaultValue={team?.short_name} />
+      <NumberField error={errors["changes.wage_budget"]} label="Wage budget" name="changes.wage_budget" defaultValue={team?.wage_budget} />
+      <NumberField error={errors["changes.transfer_budget"]} label="Transfer budget" name="changes.transfer_budget" defaultValue={team?.transfer_budget} />
+      <TextField error={errors["changes.training_focus"]} label="Training focus" name="changes.training_focus" defaultValue={team?.training_focus} />
+      <TextField error={errors["changes.training_intensity"]} label="Training intensity" name="changes.training_intensity" defaultValue={team?.training_intensity} />
     </>
   );
 }
 
-function EditCompetitionFields({ errors }: { errors: ErrorMap }) {
+function EditCompetitionFields({ errors, initialEntityId }: { errors: ErrorMap; initialEntityId?: string }) {
+  const { game } = useGameData();
+  const competition = initialEntityId ? game.manifests.find((c) => c.id === initialEntityId) : undefined;
+
   return (
     <>
-      <CompetitionSelect error={errors.competitionId} name="competitionId" required />
-      <TextField error={errors["changes.name"]} label="Name" name="changes.name" />
-      <TextField error={errors["changes.full_name"]} label="Full name" name="changes.full_name" />
-      <TextField error={errors["changes.logo"]} label="Logo path" name="changes.logo" />
+      <CompetitionSelect error={errors.competitionId} name="competitionId" required defaultValue={initialEntityId} />
+      <TextField error={errors["changes.name"]} label="Name" name="changes.name" defaultValue={competition?.name} />
+      <TextField error={errors["changes.full_name"]} label="Full name" name="changes.full_name" defaultValue={competition?.full_name} />
+      <TextField error={errors["changes.logo"]} label="Logo path" name="changes.logo" defaultValue={competition?.logo} />
       <NumberField
         error={errors["changes.tier"]}
         hint="Integer 1 or higher."
         label="Tier"
         min={1}
         name="changes.tier"
+        defaultValue={competition?.tier}
       />
-      <TriStateSelect error={errors["changes.active"]} label="Active" name="changes.active" />
+      <TriStateSelect error={errors["changes.active"]} label="Active" name="changes.active" defaultValue={competition?.active === true ? "true" : competition?.active === false ? "false" : undefined} />
     </>
   );
 }
@@ -291,10 +306,10 @@ function AddSocialAccountFields({ errors }: { errors: ErrorMap }) {
   );
 }
 
-function EditSocialTemplateFields({ errors }: { errors: ErrorMap }) {
+function EditSocialTemplateFields({ errors, initialEntityId }: { errors: ErrorMap; initialEntityId?: string }) {
   return (
     <>
-      <SocialTemplateSelect error={errors.templateId} name="templateId" required />
+      <SocialTemplateSelect error={errors.templateId} name="templateId" required defaultValue={initialEntityId} />
       <NumberField
         error={errors["changes.weight"]}
         hint="Integer 0 or higher."
@@ -409,6 +424,7 @@ function NumberField({
   min = 0,
   name,
   required = false,
+  defaultValue,
 }: {
   error?: string;
   hint?: string;
@@ -416,12 +432,14 @@ function NumberField({
   min?: number;
   name: string;
   required?: boolean;
+  defaultValue?: string | number;
 }) {
   const id = useId();
   return (
     <Field error={error} hint={hint} htmlFor={id} label={label} required={required}>
       <input
         className={styles.control}
+        defaultValue={defaultValue}
         id={id}
         min={min}
         name={name}
@@ -461,24 +479,29 @@ function TextAreaField({
 function RoleSelect({
   error,
   includeBlank = false,
+  label = "Position",
   name,
   required = false,
+  defaultValue,
 }: {
   error?: string;
   includeBlank?: boolean;
+  label?: string;
   name: string;
   required?: boolean;
+  defaultValue?: string;
 }) {
   const id = useId();
   const options = LOL_ROLES.map((role) => ({ value: role, label: role }));
   return (
-    <Field error={error} htmlFor={id} label="Position" required={required}>
+    <Field error={error} htmlFor={id} label={label} required={required}>
       <Select
         id={id}
         name={name}
         options={includeBlank ? [{ value: "", label: "No change" }, ...options] : options}
         placeholder={includeBlank ? undefined : "Select a role"}
         required={required}
+        defaultValue={defaultValue}
       />
     </Field>
   );
@@ -489,13 +512,16 @@ function TeamSelect({
   label = "Team",
   name,
   required = false,
+  defaultValue,
 }: {
   error?: string;
   label?: string;
   name: string;
   required?: boolean;
+  defaultValue?: string;
 }) {
   const id = useId();
+  const { game } = useGameData();
   const options = game.teams.map((team) => ({ value: team.id, label: `${team.name} (${team.short_name})` }));
   return (
     <Field error={error} htmlFor={id} label={label} required={required}>
@@ -504,13 +530,15 @@ function TeamSelect({
         name={name}
         options={[{ value: "", label: "Select a team" }, ...options]}
         required={required}
+        defaultValue={defaultValue}
       />
     </Field>
   );
 }
 
-function PlayerSelect({ error, name, required = false }: { error?: string; name: string; required?: boolean }) {
+function PlayerSelect({ error, name, required = false, defaultValue }: { error?: string; name: string; required?: boolean; defaultValue?: string }) {
   const id = useId();
+  const { game } = useGameData();
   const options = game.players.map((player) => ({
     value: player.id,
     label: `${player.match_name} (${player.position})`,
@@ -522,13 +550,15 @@ function PlayerSelect({ error, name, required = false }: { error?: string; name:
         name={name}
         options={[{ value: "", label: "Select a player" }, ...options]}
         required={required}
+        defaultValue={defaultValue}
       />
     </Field>
   );
 }
 
-function StaffSelect({ error, name, required = false }: { error?: string; name: string; required?: boolean }) {
+function StaffSelect({ error, name, required = false, defaultValue }: { error?: string; name: string; required?: boolean; defaultValue?: string }) {
   const id = useId();
+  const { game } = useGameData();
   const options = game.staff.map((staff) => ({
     value: staff.id,
     label: `${staff.first_name} ${staff.last_name} (${staff.role})`,
@@ -540,23 +570,24 @@ function StaffSelect({ error, name, required = false }: { error?: string; name: 
         name={name}
         options={[{ value: "", label: "Select a staff member" }, ...options]}
         required={required}
+        defaultValue={defaultValue}
       />
     </Field>
   );
 }
 
-function CompetitionSelect({ error, name, required = false }: { error?: string; name: string; required?: boolean }) {
+function CompetitionSelect({ error, name, required = false, defaultValue }: { error?: string; name: string; required?: boolean; defaultValue?: string }) {
+  const { game } = useGameData();
   const id = useId();
+  const compOptions = game.manifests.map((m) => ({ value: m.id, label: m.name }));
   return (
     <Field error={error} htmlFor={id} label="Competition" required={required}>
       <Select
         id={id}
         name={name}
-        options={[
-          { value: "", label: "Select a competition" },
-          { value: game.manifest.id, label: game.manifest.name },
-        ]}
+        options={[{ value: "", label: "Select a competition" }, ...compOptions]}
         required={required}
+        defaultValue={defaultValue}
       />
     </Field>
   );
@@ -589,13 +620,16 @@ function SocialTemplateSelect({
   error,
   name,
   required = false,
+  defaultValue,
 }: {
   error?: string;
   name: string;
   required?: boolean;
+  defaultValue?: string;
 }) {
   const id = useId();
-  const options = socialCatalog.templates.map((template) => ({
+  const { social } = useGameData();
+  const options = social.templates.map((template) => ({
     value: template.id,
     label: `${template.slot} (${template.language})`,
   }));
@@ -606,6 +640,7 @@ function SocialTemplateSelect({
         name={name}
         options={[{ value: "", label: "Select a social template" }, ...options]}
         required={required}
+        defaultValue={defaultValue}
       />
     </Field>
   );
@@ -615,10 +650,12 @@ function TriStateSelect({
   error,
   label,
   name,
+  defaultValue,
 }: {
   error?: string;
   label: string;
   name: string;
+  defaultValue?: string;
 }) {
   const id = useId();
   return (
@@ -631,6 +668,7 @@ function TriStateSelect({
           { value: "true", label: "Yes" },
           { value: "false", label: "No" },
         ]}
+        defaultValue={defaultValue}
       />
     </Field>
   );
@@ -695,12 +733,14 @@ function PartialAttributesField({
   keys,
   labelPrefix,
   required = false,
+  defaultValues,
 }: {
   errorPrefix: string;
   errors: ErrorMap;
   keys: string[];
   labelPrefix: string;
   required?: boolean;
+  defaultValues?: Record<string, string | number>;
 }) {
   return (
     <div className={styles.stack}>
@@ -709,6 +749,7 @@ function PartialAttributesField({
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
         {keys.map((key) => (
           <TextField
+            defaultValue={defaultValues?.[key]}
             error={errors[`${errorPrefix}.${key}`]}
             key={key}
             label={key.replace(/_/g, " ")}

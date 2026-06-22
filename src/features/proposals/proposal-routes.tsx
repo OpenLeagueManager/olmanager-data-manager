@@ -28,10 +28,10 @@ export function ProposalsRoute() {
   );
 }
 
-export function NewProposalRoute({ proposalType }: { proposalType: ProposalType }) {
+export function NewProposalRoute({ proposalType, initialEntityId }: { proposalType: ProposalType; initialEntityId?: string }) {
   return (
     <ProposalSessionStoreProvider>
-      <NewProposalWorkbench proposalType={proposalType} />
+      <NewProposalWorkbench proposalType={proposalType} initialEntityId={initialEntityId} />
     </ProposalSessionStoreProvider>
   );
 }
@@ -109,7 +109,7 @@ function ProposalsWorkbench() {
   );
 }
 
-function NewProposalWorkbench({ proposalType }: { proposalType: ProposalType }) {
+function NewProposalWorkbench({ proposalType, initialEntityId }: { proposalType: ProposalType; initialEntityId?: string }) {
   const router = useRouter();
   const { addDraft } = useProposalSessionStore();
 
@@ -135,6 +135,7 @@ function NewProposalWorkbench({ proposalType }: { proposalType: ProposalType }) 
             router.push(`/proposals/${proposal.id}`);
           }}
           proposalType={proposalType}
+          initialEntityId={initialEntityId}
         />
       </section>
     </div>
