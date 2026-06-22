@@ -2,25 +2,6 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { closeProposalIssue, commitToDataRepo } from "@/lib/github-app";
 
-export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const { listOpenProposals } = await import("@/lib/github-app");
-    const proposals = await listOpenProposals({});
-    return NextResponse.json({ ok: true, proposals });
-  } catch (error) {
-    console.error("Failed to list proposals:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch proposals. Check GitHub App configuration." },
-      { status: 500 },
-    );
-  }
-}
-
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
