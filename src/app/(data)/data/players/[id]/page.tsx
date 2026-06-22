@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
-import { calculateLolOvr } from "@/data/olmanager/rating";
+import { calculateLolOvr } from "@/lib/olmanager/rating";
 import { RoleChip } from "@/components/ui/role-chip";
+import { formatNumber } from "@/lib/format-number";
 import { getCompetition } from "@/lib/data/competitions";
 import { getPlayer } from "@/lib/data/players";
 import { getTeam } from "@/lib/data/teams";
@@ -24,11 +25,11 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
           { label: "Data", href: "/data" },
           {
             label: competition?.name ?? "Competition",
-            href: competition ? `/data/competitions/${competition.id}` : "/data",
+            href: competition ? `/data/competitions/${competition.id}` : "/data/competitions",
           },
           {
             label: team?.name ?? "Team",
-            href: team ? `/data/teams/${team.id}` : "/data",
+            href: team ? `/data/teams/${team.id}` : "/data/teams",
           },
           { label: player.match_name, href: `/data/players/${id}` },
         ]}
@@ -40,14 +41,14 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
           <RoleChip role={player.position} />
         </div>
         <p className="text-muted-foreground">
-          {player.match_name} · {player.nationality} · Wage {player.wage.toLocaleString()}
+          {player.match_name} · {player.nationality} · Wage {formatNumber(player.wage)}
         </p>
       </section>
 
       {player.natural_position && player.natural_position !== player.position ? (
         <section className="rounded-md border border-amber-500/30 bg-amber-500/5 p-4">
           <p className="text-sm">
-            <span className="font-medium text-amber-400">Position mismatch:</span>{" "}
+            <span className="font-medium text-amber-700">Position mismatch:</span>{" "}
             Current role is <RoleChip role={player.position} /> but natural position is{" "}
             <RoleChip role={player.natural_position} />.
           </p>
@@ -69,7 +70,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
           ) : null}
           <div className="rounded-md border border-border p-3">
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Market value</p>
-            <p className="font-heading text-lg font-semibold">{player.market_value.toLocaleString()}</p>
+            <p className="font-heading text-lg font-semibold">{formatNumber(player.market_value)}</p>
           </div>
           <div className="rounded-md border border-border p-3">
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Date of birth</p>
@@ -101,9 +102,14 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
         </div>
       </section>
 
-      <Button asChild variant="primary">
-        <Link href={`/proposals/new/EditPlayer?entityId=${encodeURIComponent(id)}`}>Propose change</Link>
-      </Button>
+      <div className="flex flex-wrap gap-3">
+        <Button asChild variant="primary">
+          <Link href={`/proposals/new/EditPlayer?entityId=${encodeURIComponent(id)}`}>Propose change</Link>
+        </Button>
+        <Button asChild variant="secondary">
+          <Link href={`/proposals/new/ReleasePlayer?entityId=${encodeURIComponent(id)}`}>Propose release</Link>
+        </Button>
+      </div>
     </div>
   );
 }

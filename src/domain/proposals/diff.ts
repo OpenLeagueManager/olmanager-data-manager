@@ -1,6 +1,6 @@
-import { calculateLolOvr } from "@/data/olmanager/rating";
-import type { PlayerAttributes, SocialTemplateData } from "@/data/olmanager/types";
-import type { CompetitionManifest, Player, Staff, Team } from "@/data/olmanager/types";
+import { calculateLolOvr } from "@/lib/olmanager/rating";
+import type { PlayerAttributes, SocialTemplateData } from "@/lib/olmanager/types";
+import type { CompetitionManifest, Player, Staff, Team } from "@/lib/olmanager/types";
 import type { DiffRecord, ProposalPayload } from "./types";
 
 export function buildProposalDiff(
@@ -226,6 +226,12 @@ export function buildProposalDiff(
 
       return records;
     }
+    case "ReleasePlayer":
+      return [record("action", null, `Release player ${proposal.playerId} (${proposal.reason})`)];
+    case "RemoveTeam":
+      return [record("action", null, `Remove team ${proposal.teamId} (${proposal.reason})`)];
+    case "RemoveCompetition":
+      return [record("action", null, `Remove competition ${proposal.competitionId} (${proposal.reason})`)];
   }
 }
 

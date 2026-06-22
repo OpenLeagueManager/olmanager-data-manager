@@ -1,4 +1,4 @@
-import { getEmbeddedSocialCatalog } from "@/data/olmanager/embedded";
+import { getEmbeddedSocialCatalog } from "@/lib/olmanager/embedded";
 
 export function listSocialAccounts() {
   return getEmbeddedSocialCatalog().accounts;

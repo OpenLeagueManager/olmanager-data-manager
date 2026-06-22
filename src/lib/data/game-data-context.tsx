@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, type ReactNode } from "react";
-import type { CompetitionManifest, Player, SocialAccountData, SocialTemplateData, Staff, Team } from "@/data/olmanager/types";
+import type { CompetitionManifest, Player, SocialAccountData, SocialTemplateData, Staff, Team } from "@/lib/olmanager/types";
 import type { DiffRecord, ProposalPayload, ProposalType, ValidationResult } from "@/domain/proposals/types";
 
 export type GameDataSet = {

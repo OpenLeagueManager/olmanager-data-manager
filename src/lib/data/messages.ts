@@ -1,4 +1,4 @@
-import { getEmbeddedMessageCatalog } from "@/data/olmanager/embedded";
+import { getEmbeddedMessageCatalog } from "@/lib/olmanager/embedded";
 
 export function listSenders() {
   return getEmbeddedMessageCatalog().senders;

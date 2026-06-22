@@ -21,11 +21,11 @@ export default async function StaffPage({ params }: { params: Promise<{ id: stri
           { label: "Data", href: "/data" },
           {
             label: competition?.name ?? "Competition",
-            href: competition ? `/data/competitions/${competition.id}` : "/data",
+            href: competition ? `/data/competitions/${competition.id}` : "/data/competitions",
           },
           {
             label: team?.name ?? "Team",
-            href: team ? `/data/teams/${team.id}` : "/data",
+            href: team ? `/data/teams/${team.id}` : "/data/teams",
           },
           { label: staff.first_name, href: `/data/staff/${id}` },
         ]}

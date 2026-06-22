@@ -1,4 +1,4 @@
-import { getEmbeddedNewsCatalog } from "@/data/olmanager/embedded";
+import { getEmbeddedNewsCatalog } from "@/lib/olmanager/embedded";
 
 export function listEditorialTemplates() {
   return getEmbeddedNewsCatalog().editorials;

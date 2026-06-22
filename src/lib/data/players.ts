@@ -1,4 +1,4 @@
-import { getEmbeddedCompetition } from "@/data/olmanager/embedded";
+import { getEmbeddedCompetition } from "@/lib/olmanager/embedded";
 
 export function listPlayers() {
   return getEmbeddedCompetition().players;

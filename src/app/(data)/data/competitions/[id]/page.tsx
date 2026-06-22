@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { Button } from "@/components/ui/button";
 import { getCompetition, toRoman } from "@/lib/data/competitions";
 import { getTeamsByCompetition } from "@/lib/data/teams";
 import { CompetitionTeamsTable } from "./competition-teams-table";
@@ -70,6 +71,15 @@ export default async function CompetitionPage({ params, searchParams }: Props) {
           </div>
         </div>
       ) : null}
+
+      <div className="flex flex-wrap gap-3">
+        <Button asChild variant="primary">
+          <Link href={`/proposals/new/EditCompetition?entityId=${encodeURIComponent(id)}`}>Propose change</Link>
+        </Button>
+        <Button asChild variant="secondary">
+          <Link href={`/proposals/new/RemoveCompetition?entityId=${encodeURIComponent(id)}`}>Propose remove</Link>
+        </Button>
+      </div>
     </div>
   );
 }

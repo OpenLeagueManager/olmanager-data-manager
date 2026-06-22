@@ -6,7 +6,7 @@ import { createValidator } from "@/domain/proposals/validation";
 import type { DiffRecord, ProposalPayload, ProposalReview } from "@/domain/proposals/types";
 import type { GameDataSet, SocialDataSet } from "@/lib/data/game-data-context";
 import { GameDataProvider } from "@/lib/data/game-data-context";
-import { getEmbeddedCompetition, getEmbeddedSocialCatalog } from "@/data/olmanager/embedded";
+import { getEmbeddedCompetition, getEmbeddedSocialCatalog } from "@/lib/olmanager/embedded";
 import { ProposalForm } from "./proposal-form";
 import { ProposalDetail } from "./proposal-presenters";
 import { ReviewControls } from "./review-controls";
@@ -61,7 +61,7 @@ const SESSION_VALIDATE = (input: unknown) => {
   const obj = input as Record<string, unknown> | null;
   if (!obj || typeof obj !== "object") return { ok: false as const, errors: [{ field: "payload", message: "not an object" }] };
   if (typeof obj.type !== "string") return { ok: false as const, errors: [{ field: "type", message: "missing type" }] };
-  const known = ["AddPlayer", "EditPlayer", "TransferPlayer", "AddStaff", "EditStaff", "ReleaseStaff", "EditTeam", "EditCompetition", "AddSocialAccount", "EditSocialTemplate", "AddNewsTemplate"];
+  const known = ["AddPlayer", "EditPlayer", "TransferPlayer", "ReleasePlayer", "AddStaff", "EditStaff", "ReleaseStaff", "EditTeam", "RemoveTeam", "EditCompetition", "RemoveCompetition", "AddSocialAccount", "EditSocialTemplate", "AddNewsTemplate"];
   if (!known.includes(obj.type)) return { ok: false as const, errors: [{ field: "type", message: `unknown type: ${obj.type}` }] };
   return { ok: true, value: input } as { ok: true; value: ProposalPayload };
 };

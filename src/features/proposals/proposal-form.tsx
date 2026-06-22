@@ -1,13 +1,13 @@
 "use client";
 
 import { useId, useMemo, useState, type FormEvent } from "react";
-import { calculateLolOvr, PLAYER_RATING_HINT } from "@/data/olmanager/rating";
+import { calculateLolOvr, PLAYER_RATING_HINT } from "@/lib/olmanager/rating";
 import {
   LOL_ROLES,
   PLAYER_ATTRIBUTE_KEYS,
   SOCIAL_AUTHOR_TYPES,
   STAFF_ATTRIBUTE_KEYS,
-} from "@/data/olmanager/types";
+} from "@/lib/olmanager/types";
 import { PROPOSAL_TYPE_METADATA } from "@/domain/proposals/metadata";
 import type { FieldError, ProposalPayload, ProposalType } from "@/domain/proposals/types";
 import { Button } from "@/components/ui/button";
@@ -55,11 +55,14 @@ export function ProposalForm({ proposalType, onProposalAccepted, initialEntityId
       {proposalType === "AddPlayer" ? <AddPlayerFields errors={errorMap} /> : null}
       {proposalType === "EditPlayer" ? <EditPlayerFields errors={errorMap} initialEntityId={prefill} /> : null}
       {proposalType === "TransferPlayer" ? <TransferPlayerFields errors={errorMap} initialEntityId={prefill} /> : null}
+      {proposalType === "ReleasePlayer" ? <ReleasePlayerFields errors={errorMap} initialEntityId={prefill} /> : null}
       {proposalType === "AddStaff" ? <AddStaffFields errors={errorMap} /> : null}
       {proposalType === "EditStaff" ? <EditStaffFields errors={errorMap} initialEntityId={prefill} /> : null}
       {proposalType === "ReleaseStaff" ? <ReleaseStaffFields errors={errorMap} initialEntityId={prefill} /> : null}
       {proposalType === "EditTeam" ? <EditTeamFields errors={errorMap} initialEntityId={prefill} /> : null}
+      {proposalType === "RemoveTeam" ? <RemoveTeamFields errors={errorMap} initialEntityId={prefill} /> : null}
       {proposalType === "EditCompetition" ? <EditCompetitionFields errors={errorMap} initialEntityId={prefill} /> : null}
+      {proposalType === "RemoveCompetition" ? <RemoveCompetitionFields errors={errorMap} initialEntityId={prefill} /> : null}
       {proposalType === "AddSocialAccount" ? <AddSocialAccountFields errors={errorMap} /> : null}
       {proposalType === "EditSocialTemplate" ? <EditSocialTemplateFields errors={errorMap} initialEntityId={prefill} /> : null}
       {proposalType === "AddNewsTemplate" ? <AddNewsTemplateFields errors={errorMap} /> : null}
@@ -82,7 +85,7 @@ function AddPlayerFields({ errors }: { errors: ErrorMap }) {
       calculateLolOvr(
         Object.fromEntries(
           PLAYER_ATTRIBUTE_KEYS.map((key) => [key, Number(attributes[key]) || 1]),
-        ) as unknown as import("@/data/olmanager/types").PlayerAttributes,
+        ) as unknown as import("@/lib/olmanager/types").PlayerAttributes,
       ),
     [attributes],
   );
@@ -240,6 +243,29 @@ function ReleaseStaffFields({ errors, initialEntityId }: { errors: ErrorMap; ini
   );
 }
 
+function ReleasePlayerFields({ errors, initialEntityId }: { errors: ErrorMap; initialEntityId?: string }) {
+  const reasonId = useId();
+  return (
+    <>
+      <PlayerSelect error={errors.playerId} name="playerId" required defaultValue={initialEntityId} />
+      <Field error={errors.reason} htmlFor={reasonId} label="Reason" required>
+        <Select
+          id={reasonId}
+          name="reason"
+          options={[
+            { value: "fired", label: "Fired" },
+            { value: "resigned", label: "Resigned" },
+            { value: "contract_end", label: "Contract end" },
+            { value: "mutual", label: "Mutual agreement" },
+          ]}
+          required
+        />
+      </Field>
+      <NumberField error={errors.severance} label="Severance" name="severance" />
+    </>
+  );
+}
+
 function EditTeamFields({ errors, initialEntityId }: { errors: ErrorMap; initialEntityId?: string }) {
   const { game } = useGameData();
   const team = initialEntityId ? game.teams.find((t) => t.id === initialEntityId) : undefined;
@@ -253,6 +279,16 @@ function EditTeamFields({ errors, initialEntityId }: { errors: ErrorMap; initial
       <NumberField error={errors["changes.transfer_budget"]} label="Transfer budget" name="changes.transfer_budget" defaultValue={team?.transfer_budget} />
       <TextField error={errors["changes.training_focus"]} label="Training focus" name="changes.training_focus" defaultValue={team?.training_focus} />
       <TextField error={errors["changes.training_intensity"]} label="Training intensity" name="changes.training_intensity" defaultValue={team?.training_intensity} />
+    </>
+  );
+}
+
+function RemoveTeamFields({ errors, initialEntityId }: { errors: ErrorMap; initialEntityId?: string }) {
+  const reasonId = useId();
+  return (
+    <>
+      <TeamSelect error={errors.teamId} name="teamId" required defaultValue={initialEntityId} />
+      <TextField error={errors.reason} label="Reason" name="reason" required />
     </>
   );
 }
@@ -276,6 +312,16 @@ function EditCompetitionFields({ errors, initialEntityId }: { errors: ErrorMap; 
         defaultValue={competition?.tier}
       />
       <TriStateSelect error={errors["changes.active"]} label="Active" name="changes.active" defaultValue={competition?.active === true ? "true" : competition?.active === false ? "false" : undefined} />
+    </>
+  );
+}
+
+function RemoveCompetitionFields({ errors, initialEntityId }: { errors: ErrorMap; initialEntityId?: string }) {
+  const reasonId = useId();
+  return (
+    <>
+      <CompetitionSelect error={errors.competitionId} name="competitionId" required defaultValue={initialEntityId} />
+      <TextField error={errors.reason} label="Reason" name="reason" required />
     </>
   );
 }
@@ -788,14 +834,14 @@ function payloadFromForm(proposalType: ProposalType, formData: FormData): Propos
         player: {
           full_name: readFormString(formData, "player.full_name"),
           match_name: readFormString(formData, "player.match_name"),
-          position: readFormString(formData, "player.position") as import("@/data/olmanager/types").LoLRole,
+          position: readFormString(formData, "player.position") as import("@/lib/olmanager/types").LoLRole,
           team_id: readFormString(formData, "player.team_id"),
           nationality: readFormString(formData, "player.nationality"),
           wage: readFormNumber(formData, "player.wage"),
           market_value: readFormNumber(formData, "player.market_value"),
           date_of_birth: readFormString(formData, "player.date_of_birth"),
           contract_end: readFormString(formData, "player.contract_end"),
-          attributes: readFormAttributes(formData, "player.attributes", PLAYER_ATTRIBUTE_KEYS as unknown as string[]) as unknown as import("@/data/olmanager/types").PlayerAttributes,
+          attributes: readFormAttributes(formData, "player.attributes", PLAYER_ATTRIBUTE_KEYS as unknown as string[]) as unknown as import("@/lib/olmanager/types").PlayerAttributes,
         },
       };
     case "EditPlayer":
@@ -806,14 +852,14 @@ function payloadFromForm(proposalType: ProposalType, formData: FormData): Propos
         changes: compactChanges({
           full_name: readFormString(formData, "changes.full_name"),
           match_name: readFormString(formData, "changes.match_name"),
-          position: readFormString(formData, "changes.position") as import("@/data/olmanager/types").LoLRole,
+          position: readFormString(formData, "changes.position") as import("@/lib/olmanager/types").LoLRole,
           nationality: readFormString(formData, "changes.nationality"),
           wage: readOptionalFormNumber(formData, "changes.wage"),
           market_value: readOptionalFormNumber(formData, "changes.market_value"),
           contract_end: readFormString(formData, "changes.contract_end"),
           transfer_listed: readTriState(formData, "changes.transfer_listed"),
           loan_listed: readTriState(formData, "changes.loan_listed"),
-          attributes: readPartialFormAttributes(formData, "changes.attributes", PLAYER_ATTRIBUTE_KEYS as unknown as string[]) as unknown as Partial<import("@/data/olmanager/types").PlayerAttributes>,
+          attributes: readPartialFormAttributes(formData, "changes.attributes", PLAYER_ATTRIBUTE_KEYS as unknown as string[]) as unknown as Partial<import("@/lib/olmanager/types").PlayerAttributes>,
         }),
       };
     case "TransferPlayer":
@@ -841,7 +887,7 @@ function payloadFromForm(proposalType: ProposalType, formData: FormData): Propos
           wage: readFormNumber(formData, "staff.wage"),
           contract_end: readFormString(formData, "staff.contract_end"),
           date_of_birth: readFormString(formData, "staff.date_of_birth"),
-          attributes: readFormAttributes(formData, "staff.attributes", STAFF_ATTRIBUTE_KEYS as unknown as string[]) as unknown as import("@/data/olmanager/types").StaffAttributes,
+          attributes: readFormAttributes(formData, "staff.attributes", STAFF_ATTRIBUTE_KEYS as unknown as string[]) as unknown as import("@/lib/olmanager/types").StaffAttributes,
         },
       };
     case "EditStaff":
@@ -853,7 +899,7 @@ function payloadFromForm(proposalType: ProposalType, formData: FormData): Propos
           role: readFormString(formData, "changes.role"),
           wage: readOptionalFormNumber(formData, "changes.wage"),
           contract_end: readFormString(formData, "changes.contract_end"),
-          attributes: readPartialFormAttributes(formData, "changes.attributes", STAFF_ATTRIBUTE_KEYS as unknown as string[]) as unknown as Partial<import("@/data/olmanager/types").StaffAttributes>,
+          attributes: readPartialFormAttributes(formData, "changes.attributes", STAFF_ATTRIBUTE_KEYS as unknown as string[]) as unknown as Partial<import("@/lib/olmanager/types").StaffAttributes>,
         }),
       };
     case "ReleaseStaff":
@@ -899,7 +945,7 @@ function payloadFromForm(proposalType: ProposalType, formData: FormData): Propos
           language: readFormString(formData, "account.language"),
           display_name: readFormString(formData, "account.display_name"),
           handle: readFormString(formData, "account.handle"),
-          author_type: readFormString(formData, "account.author_type") as import("@/data/olmanager/types").SocialAuthorType,
+          author_type: readFormString(formData, "account.author_type") as import("@/lib/olmanager/types").SocialAuthorType,
           profile_image_url: readNullableFormString(formData, "account.profile_image_url"),
           favorite_team_ids: readCommaSeparatedStrings(formData, "account.favorite_team_ids"),
           active: readTriState(formData, "account.active") ?? true,

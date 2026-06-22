@@ -1,5 +1,5 @@
 import { cn } from "@/lib/cn";
-import type { LoLRole } from "@/data/olmanager/types";
+import type { LoLRole } from "@/lib/olmanager/types";
 
 const ROLE_ICON_SRC: Record<LoLRole, string> = {
   Top: "/role-icons/top.webp",

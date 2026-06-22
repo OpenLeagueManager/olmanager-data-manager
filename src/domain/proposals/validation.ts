@@ -2,7 +2,7 @@ import {
   PLAYER_RATING_ERROR_MESSAGE,
   PLAYER_RATING_MAX,
   PLAYER_RATING_MIN,
-} from "@/data/olmanager/rating";
+} from "@/lib/olmanager/rating";
 import {
   LOL_ROLES,
   PLAYER_ATTRIBUTE_KEYS,
@@ -17,7 +17,7 @@ import {
   type Staff,
   type StaffAttributes,
   type Team,
-} from "@/data/olmanager/types";
+} from "@/lib/olmanager/types";
 import { PROPOSAL_TYPE_METADATA, SUPPORTED_PROPOSAL_TYPE_NAMES } from "./metadata";
 import type {
   AddNewsTemplatePayload,
@@ -32,7 +32,10 @@ import type {
   FieldError,
   ProposalPayload,
   ProposalType,
+  ReleasePlayerPayload,
   ReleaseStaffPayload,
+  RemoveCompetitionPayload,
+  RemoveTeamPayload,
   TransferPlayerPayload,
   ValidationResult,
 } from "./types";
@@ -87,12 +90,18 @@ export function createValidator(
         return validateAddStaff(input);
       case "EditStaff":
         return validateEditStaff(input);
+      case "ReleasePlayer":
+        return validateReleasePlayer(input);
       case "ReleaseStaff":
         return validateReleaseStaff(input);
       case "EditTeam":
         return validateEditTeam(input);
+      case "RemoveTeam":
+        return validateRemoveTeam(input);
       case "EditCompetition":
         return validateEditCompetition(input);
+      case "RemoveCompetition":
+        return validateRemoveCompetition(input);
       case "AddSocialAccount":
         return validateAddSocialAccount(input);
       case "EditSocialTemplate":
@@ -430,6 +439,40 @@ export function createValidator(
     };
   }
 
+  function validateReleasePlayer(input: RawRecord): ValidationResult<ReleasePlayerPayload> {
+    const errors: FieldError[] = [];
+    const playerId = readString(input.playerId, "playerId", errors);
+    const reason = readEnum(
+      input.reason,
+      "reason",
+      RELEASE_REASONS as unknown as readonly string[],
+      errors,
+    ) as ReleasePlayerPayload["reason"] | "";
+    const severance = input.severance !== undefined
+      ? readInteger(input.severance, "severance", errors, { min: 0 })
+      : undefined;
+
+    const player = game.players.find((candidate) => candidate.id === playerId);
+    if (playerId && !player) {
+      errors.push({ field: "playerId", message: "Player does not exist." });
+    }
+
+    if (errors.length > 0) {
+      return { ok: false, errors };
+    }
+
+    return {
+      ok: true,
+      value: {
+        version: 2,
+        type: "ReleasePlayer",
+        playerId,
+        reason: reason || "mutual",
+        severance,
+      },
+    };
+  }
+
   function validateEditTeam(input: RawRecord): ValidationResult<EditTeamPayload> {
     const errors: FieldError[] = [];
     const teamId = readString(input.teamId, "teamId", errors);
@@ -497,6 +540,26 @@ export function createValidator(
     };
   }
 
+  function validateRemoveTeam(input: RawRecord): ValidationResult<RemoveTeamPayload> {
+    const errors: FieldError[] = [];
+    const teamId = readString(input.teamId, "teamId", errors);
+    const reason = readString(input.reason, "reason", errors);
+
+    const team = game.teams.find((candidate) => candidate.id === teamId);
+    if (teamId && !team) {
+      errors.push({ field: "teamId", message: "Team does not exist." });
+    }
+
+    if (errors.length > 0) {
+      return { ok: false, errors };
+    }
+
+    return {
+      ok: true,
+      value: { version: 2, type: "RemoveTeam", teamId, reason: reason || "Removed" },
+    };
+  }
+
   function validateEditCompetition(input: RawRecord): ValidationResult<EditCompetitionPayload> {
     const errors: FieldError[] = [];
     const competitionId = readString(input.competitionId, "competitionId", errors);
@@ -539,6 +602,26 @@ export function createValidator(
     return {
       ok: true,
       value: { version: 2, type: "EditCompetition", competitionId, changes: normalizedChanges },
+    };
+  }
+
+  function validateRemoveCompetition(input: RawRecord): ValidationResult<RemoveCompetitionPayload> {
+    const errors: FieldError[] = [];
+    const competitionId = readString(input.competitionId, "competitionId", errors);
+    const reason = readString(input.reason, "reason", errors);
+
+    const competition = game.manifests.find((candidate) => candidate.id === competitionId);
+    if (competitionId && !competition) {
+      errors.push({ field: "competitionId", message: "Competition does not exist." });
+    }
+
+    if (errors.length > 0) {
+      return { ok: false, errors };
+    }
+
+    return {
+      ok: true,
+      value: { version: 2, type: "RemoveCompetition", competitionId, reason: reason || "Removed" },
     };
   }
 
@@ -588,7 +671,7 @@ export function createValidator(
           language,
           display_name,
           handle,
-          author_type: author_type as import("@/data/olmanager/types").SocialAuthorType,
+          author_type: author_type as import("@/lib/olmanager/types").SocialAuthorType,
           profile_image_url,
           favorite_team_ids,
           active,
@@ -901,7 +984,7 @@ export function createValidator(
   }
 
   function readSocialAuthorType(value: unknown, field: string, errors: FieldError[]) {
-    return readEnum<import("@/data/olmanager/types").SocialAuthorType>(
+    return readEnum<import("@/lib/olmanager/types").SocialAuthorType>(
       value,
       field,
       SOCIAL_AUTHOR_TYPES,
@@ -952,7 +1035,7 @@ export function createValidator(
     value: unknown,
     field: string,
     errors: FieldError[],
-  ): import("@/data/olmanager/types").NewsHeadline[] {
+  ): import("@/lib/olmanager/types").NewsHeadline[] {
     if (!Array.isArray(value) || value.length === 0) {
       errors.push({ field, message: "At least one headline is required." });
       return [];
@@ -979,7 +1062,7 @@ export function createValidator(
     value: unknown,
     field: string,
     errors: FieldError[],
-  ): import("@/data/olmanager/types").NewsSource[] {
+  ): import("@/lib/olmanager/types").NewsSource[] {
     if (!Array.isArray(value) || value.length === 0) {
       errors.push({ field, message: "At least one source is required." });
       return [];
@@ -1006,7 +1089,7 @@ export function createValidator(
     value: unknown,
     field: string,
     errors: FieldError[],
-  ): import("@/data/olmanager/types").NewsBodyVariant[] {
+  ): import("@/lib/olmanager/types").NewsBodyVariant[] {
     if (value === undefined || value === null) {
       return [];
     }
@@ -1034,7 +1117,7 @@ export function createValidator(
   }
 
   function filterSocialTemplateChanges(
-    template: import("@/data/olmanager/types").SocialTemplateData,
+    template: import("@/lib/olmanager/types").SocialTemplateData,
     changes: EditSocialTemplatePayload["changes"],
   ): EditSocialTemplatePayload["changes"] {
     const result: EditSocialTemplatePayload["changes"] = {};

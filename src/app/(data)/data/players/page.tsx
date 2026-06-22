@@ -1,18 +1,20 @@
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { listPlayers } from "@/lib/data/players";
 import { getTeam } from "@/lib/data/teams";
+import { calculateLolOvr } from "@/lib/olmanager/rating";
 import { PlayersTable } from "./players-table";
 
 export default async function PlayersIndexPage() {
   const players = listPlayers();
 
-  // Pre-compute team lookups server-side
+  // Pre-compute team lookups and OVR server-side
   const enriched = players.map((player) => {
     const team = getTeam(player.team_id);
     return {
       ...player,
       teamName: team?.name ?? "",
       teamId: team?.id ?? "",
+      ovr: calculateLolOvr(player.attributes),
     };
   });
 

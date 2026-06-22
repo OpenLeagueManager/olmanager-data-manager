@@ -1,4 +1,4 @@
-import { getEmbeddedCompetition, getEmbeddedSocialCatalog } from "@/data/olmanager/embedded";
+import { getEmbeddedCompetition, getEmbeddedSocialCatalog } from "@/lib/olmanager/embedded";
 import { GameDataClientLoader } from "./game-data-client-loader";
 import type { ReactNode } from "react";
 

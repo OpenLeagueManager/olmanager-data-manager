@@ -1,4 +1,4 @@
-import { getEmbeddedCompetition } from "@/data/olmanager/embedded";
+import { getEmbeddedCompetition } from "@/lib/olmanager/embedded";
 
 export { toRoman } from "./to-roman";
 

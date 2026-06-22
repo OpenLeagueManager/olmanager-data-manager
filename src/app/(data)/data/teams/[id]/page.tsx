@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { Button } from "@/components/ui/button";
 import { getCompetition } from "@/lib/data/competitions";
 import { getRoster } from "@/lib/data/players";
 import { getTeam } from "@/lib/data/teams";
@@ -20,7 +22,7 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
           { label: "Data", href: "/data" },
           {
             label: competition?.name ?? "Competition",
-            href: competition ? `/data/competitions/${competition.id}` : "/data",
+            href: competition ? `/data/competitions/${competition.id}` : "/data/competitions",
           },
           { label: team.name, href: `/data/teams/${id}` },
         ]}
@@ -34,6 +36,15 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
       </section>
 
       <RosterTable teamName={team.name} players={roster.players} staff={roster.staff} />
+
+      <div className="flex flex-wrap gap-3">
+        <Button asChild variant="primary">
+          <Link href={`/proposals/new/EditTeam?entityId=${encodeURIComponent(id)}`}>Propose change</Link>
+        </Button>
+        <Button asChild variant="secondary">
+          <Link href={`/proposals/new/RemoveTeam?entityId=${encodeURIComponent(id)}`}>Propose remove</Link>
+        </Button>
+      </div>
     </div>
   );
 }

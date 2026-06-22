@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateLolOvr } from "@/data/olmanager/rating";
+import { calculateLolOvr } from "@/lib/olmanager/rating";
 import { buildProposalDiff } from "./diff";
 import { transitionReviewState } from "./review-state";
 import type { ProposalPayload, ReviewerMetadata } from "./types";
@@ -11,7 +11,7 @@ import type {
   SocialTemplateData,
   Staff,
   Team,
-} from "@/data/olmanager/types";
+} from "@/lib/olmanager/types";
 import lecManifest from "@/data/competitions/lec/manifest.json";
 import lecPlayers from "@/data/players/lec_players.json";
 import lecStaffs from "@/data/staffs/lec_staffs.json";
@@ -92,7 +92,7 @@ describe("proposal validation", () => {
         {
           field: "type",
           message:
-            "Unsupported proposal type. Supported types: AddPlayer, EditPlayer, TransferPlayer, AddStaff, EditStaff, ReleaseStaff, EditTeam, EditCompetition, AddSocialAccount, EditSocialTemplate, AddNewsTemplate.",
+            "Unsupported proposal type. Supported types: AddPlayer, EditPlayer, TransferPlayer, ReleasePlayer, AddStaff, EditStaff, ReleaseStaff, EditTeam, RemoveTeam, EditCompetition, RemoveCompetition, AddSocialAccount, EditSocialTemplate, AddNewsTemplate.",
         },
       ],
     });

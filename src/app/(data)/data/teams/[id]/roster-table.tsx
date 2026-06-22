@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { DataTable, type Column, type SortDirection } from "@/components/ui/data-table";
 import { RoleChip } from "@/components/ui/role-chip";
-import type { Player, Staff } from "@/data/olmanager/types";
+import { formatNumber } from "@/lib/format-number";
+import type { Player, Staff } from "@/lib/olmanager/types";
 
 function isPlayer(row: Player | Staff): row is Player {
   return "match_name" in row;
@@ -54,12 +55,15 @@ export function RosterTable({ teamName, players, staff }: Props) {
         rows={rosterRows}
         caption={`Roster for ${teamName}`}
         empty="No roster entries."
+        searchable
+        searchPlaceholder="Search roster..."
         columns={[
           {
             key: "name",
             header: "Name",
             sortable: true,
             sort: stringSort(getName),
+            getSearchValue: getName,
             render: (row) =>
               isPlayer(row) ? (
                 <Link className="font-medium hover:underline" href={`/data/players/${row.id}`}>
@@ -76,6 +80,9 @@ export function RosterTable({ teamName, players, staff }: Props) {
             header: "Role",
             sortable: true,
             sort: stringSort(getRole),
+            filterable: true,
+            getFilterValue: getRole,
+            getSearchValue: getRole,
             render: (row) =>
               isPlayer(row) ? <RoleChip role={row.position} /> : row.role,
           } as Column<Player | Staff>,
@@ -93,7 +100,7 @@ export function RosterTable({ teamName, players, staff }: Props) {
             sortable: true,
             sort: numberSort(getWage),
             render: (row) =>
-              typeof row.wage === "number" ? row.wage.toLocaleString() : "-",
+              typeof row.wage === "number" ? formatNumber(row.wage) : "-",
           } as Column<Player | Staff>,
         ]}
       />
