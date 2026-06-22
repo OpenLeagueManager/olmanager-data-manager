@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { closeProposalIssue, commitToDataRepo } from "@/lib/github-app";
+import { isMaintainer } from "@/lib/permissions";
 
 export async function POST(
   request: Request,
@@ -9,6 +10,10 @@ export async function POST(
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!isMaintainer(session)) {
+    return NextResponse.json({ error: "Forbidden: maintainer only" }, { status: 403 });
   }
 
   const { id } = await params;

@@ -158,7 +158,7 @@ function ProposalsWorkbench() {
                       <span className="text-sm text-muted-foreground">Done</span>
                     ) : reviewStatus[gh.number] === "error" ? (
                       <span className="text-sm text-destructive">Error</span>
-                    ) : (
+                    ) : session?.user?.isMaintainer ? (
                       <>
                         <Button
                           disabled={reviewLoading}
@@ -177,6 +177,8 @@ function ProposalsWorkbench() {
                           Reject
                         </Button>
                       </>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Awaiting review</span>
                     )}
                   </div>
                 </div>

@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import Discord from "next-auth/providers/discord";
+import { isMaintainer } from "./permissions";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
@@ -12,6 +13,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async session({ session, token }) {
       if (session.user && token.sub) {
         session.user.id = token.sub;
+        session.user.isMaintainer = isMaintainer(session);
       }
       return session;
     },
