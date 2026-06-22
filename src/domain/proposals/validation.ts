@@ -1,4 +1,4 @@
-import { getEmbeddedCompetition } from "@/data/olmanager/embedded";
+import { getEmbeddedCompetition, getEmbeddedSocialCatalog } from "@/data/olmanager/embedded";
 import {
   PLAYER_RATING_ERROR_MESSAGE,
   PLAYER_RATING_MAX,
@@ -7,6 +7,7 @@ import {
 import {
   LOL_ROLES,
   PLAYER_ATTRIBUTE_KEYS,
+  SOCIAL_AUTHOR_TYPES,
   STAFF_ATTRIBUTE_KEYS,
   type LoLRole,
   type PlayerAttributes,
@@ -14,9 +15,13 @@ import {
 } from "@/data/olmanager/types";
 import { PROPOSAL_TYPE_METADATA, SUPPORTED_PROPOSAL_TYPE_NAMES } from "./metadata";
 import type {
+  AddNewsTemplatePayload,
   AddPlayerPayload,
+  AddSocialAccountPayload,
   AddStaffPayload,
+  EditCompetitionPayload,
   EditPlayerPayload,
+  EditSocialTemplatePayload,
   EditStaffPayload,
   EditTeamPayload,
   FieldError,
@@ -30,6 +35,7 @@ import type {
 const RELEASE_REASONS = ["fired", "resigned", "contract_end", "mutual"] as const;
 
 const game = getEmbeddedCompetition();
+const socialCatalog = getEmbeddedSocialCatalog();
 
 type RawRecord = Record<string, unknown>;
 
@@ -44,7 +50,7 @@ export function parseProposalType(value: unknown): ValidationResult<ProposalType
     errors: [
       {
         field: "type",
-        message: `Unsupported proposal type. Supported PR2 types: ${SUPPORTED_PROPOSAL_TYPE_NAMES}.`,
+        message: `Unsupported proposal type. Supported types: ${SUPPORTED_PROPOSAL_TYPE_NAMES}.`,
       },
     ],
   };
@@ -79,6 +85,14 @@ export function validateProposal(input: unknown): ValidationResult<ProposalPaylo
       return validateReleaseStaff(input);
     case "EditTeam":
       return validateEditTeam(input);
+    case "EditCompetition":
+      return validateEditCompetition(input);
+    case "AddSocialAccount":
+      return validateAddSocialAccount(input);
+    case "EditSocialTemplate":
+      return validateEditSocialTemplate(input);
+    case "AddNewsTemplate":
+      return validateAddNewsTemplate(input);
     default:
       return fieldFailure("type", `${typeResult.value} is not implemented in this slice.`);
   }
@@ -476,6 +490,216 @@ function validateEditTeam(input: RawRecord): ValidationResult<EditTeamPayload> {
   };
 }
 
+function validateEditCompetition(input: RawRecord): ValidationResult<EditCompetitionPayload> {
+  const errors: FieldError[] = [];
+  const competitionId = readString(input.competitionId, "competitionId", errors);
+
+  if (competitionId && competitionId !== game.manifest.id) {
+    errors.push({ field: "competitionId", message: "Competition does not exist in the embedded subset." });
+  }
+
+  const changes = isRecord(input.changes) ? input.changes : undefined;
+  if (!changes) {
+    return fieldFailure("changes", "Changes are required.");
+  }
+
+  const normalizedChanges: EditCompetitionPayload["changes"] = {};
+
+  if ("name" in changes) {
+    normalizedChanges.name = readString(changes.name, "changes.name", errors);
+  }
+  if ("full_name" in changes) {
+    normalizedChanges.full_name = readString(changes.full_name, "changes.full_name", errors);
+  }
+  if ("logo" in changes) {
+    normalizedChanges.logo = readString(changes.logo, "changes.logo", errors);
+  }
+  if ("tier" in changes) {
+    normalizedChanges.tier = readInteger(changes.tier, "changes.tier", errors, { min: 1 });
+  }
+  if ("active" in changes) {
+    normalizedChanges.active = readBoolean(changes.active, "changes.active", errors);
+  }
+
+  if (Object.keys(normalizedChanges).length === 0) {
+    errors.push({ field: "changes", message: "At least one change is required." });
+  }
+
+  if (errors.length > 0) {
+    return { ok: false, errors };
+  }
+
+  return {
+    ok: true,
+    value: { version: 2, type: "EditCompetition", competitionId, changes: normalizedChanges },
+  };
+}
+
+function validateAddSocialAccount(input: RawRecord): ValidationResult<AddSocialAccountPayload> {
+  const errors: FieldError[] = [];
+  const account = isRecord(input.account) ? input.account : undefined;
+
+  if (!account) {
+    return fieldFailure("account", "Account details are required.");
+  }
+
+  const language = readString(account.language, "account.language", errors);
+  const display_name = readString(account.display_name, "account.display_name", errors);
+  const handle = readString(account.handle, "account.handle", errors);
+  const author_type = readSocialAuthorType(account.author_type, "account.author_type", errors);
+  const profile_image_url =
+    account.profile_image_url === null || account.profile_image_url === undefined
+      ? null
+      : readOptionalString(account.profile_image_url, "account.profile_image_url", errors);
+  const favorite_team_ids = readStringArray(
+    account.favorite_team_ids,
+    "account.favorite_team_ids",
+    errors,
+    {
+      validateItems: (teamId, index, itemErrors) => {
+        if (!game.teams.some((team) => team.id === teamId)) {
+          itemErrors.push({
+            field: `account.favorite_team_ids[${index}]`,
+            message: "Team does not exist.",
+          });
+        }
+      },
+    },
+  );
+  const active = readBoolean(account.active, "account.active", errors);
+
+  if (errors.length > 0) {
+    return { ok: false, errors };
+  }
+
+  return {
+    ok: true,
+    value: {
+      version: 2,
+      type: "AddSocialAccount",
+      account: {
+        language,
+        display_name,
+        handle,
+        author_type: author_type as import("@/data/olmanager/types").SocialAuthorType,
+        profile_image_url,
+        favorite_team_ids,
+        active,
+      },
+    },
+  };
+}
+
+function validateEditSocialTemplate(input: RawRecord): ValidationResult<EditSocialTemplatePayload> {
+  const errors: FieldError[] = [];
+  const templateId = readString(input.templateId, "templateId", errors);
+  const template = socialCatalog.templates.find((candidate) => candidate.id === templateId);
+
+  if (templateId && !template) {
+    errors.push({ field: "templateId", message: "Social template does not exist." });
+  }
+
+  const changes = isRecord(input.changes) ? input.changes : undefined;
+  if (!changes) {
+    return fieldFailure("changes", "Changes are required.");
+  }
+
+  const candidateChanges: EditSocialTemplatePayload["changes"] = {};
+
+  if ("weight" in changes) {
+    candidateChanges.weight = readInteger(changes.weight, "changes.weight", errors, { min: 0 });
+  }
+  if ("variants" in changes) {
+    candidateChanges.variants = readStringArray(changes.variants, "changes.variants", errors);
+  }
+  if ("tags" in changes) {
+    candidateChanges.tags = readStringArray(changes.tags, "changes.tags", errors);
+  }
+  if ("active" in changes) {
+    candidateChanges.active = readBoolean(changes.active, "changes.active", errors);
+  }
+  if ("conditions_json" in changes) {
+    candidateChanges.conditions_json = readOptionalString(
+      changes.conditions_json,
+      "changes.conditions_json",
+      errors,
+    );
+  }
+
+  if (errors.length > 0) {
+    return { ok: false, errors };
+  }
+
+  const normalizedChanges: EditSocialTemplatePayload["changes"] = template
+    ? filterSocialTemplateChanges(template, candidateChanges)
+    : candidateChanges;
+
+  if (Object.keys(normalizedChanges).length === 0) {
+    errors.push({ field: "changes", message: "At least one change is required." });
+  }
+
+  if (errors.length > 0) {
+    return { ok: false, errors };
+  }
+
+  return {
+    ok: true,
+    value: { version: 2, type: "EditSocialTemplate", templateId, changes: normalizedChanges },
+  };
+}
+
+function validateAddNewsTemplate(input: RawRecord): ValidationResult<AddNewsTemplatePayload> {
+  const errors: FieldError[] = [];
+  const template = isRecord(input.template) ? input.template : undefined;
+
+  if (!template) {
+    return fieldFailure("template", "Template details are required.");
+  }
+
+  const category = readString(template.category, "template.category", errors);
+  const headlines = readNewsHeadlines(template.headlines, "template.headlines", errors);
+  const body = readOptionalString(template.body, "template.body", errors);
+  const body_key = readOptionalString(template.body_key, "template.body_key", errors);
+  const body_variants = readNewsBodyVariants(
+    template.body_variants,
+    "template.body_variants",
+    errors,
+  );
+  const sources = readNewsSources(template.sources, "template.sources", errors);
+
+  if (body === null && body_variants.length === 0) {
+    errors.push({
+      field: "template.body",
+      message: "Body or at least one body variant is required.",
+    });
+  }
+
+  if (errors.length > 0) {
+    return { ok: false, errors };
+  }
+
+  const result: AddNewsTemplatePayload["template"] = {
+    category,
+    headlines,
+    sources,
+  };
+
+  if (body !== null) {
+    result.body = body;
+  }
+  if (body_key !== null) {
+    result.body_key = body_key;
+  }
+  if (body_variants.length > 0) {
+    result.body_variants = body_variants;
+  }
+
+  return {
+    ok: true,
+    value: { version: 2, type: "AddNewsTemplate", template: result },
+  };
+}
+
 function readString(value: unknown, field: string, errors: FieldError[]): string {
   if (typeof value === "string" && value.trim().length > 0) {
     return value.trim();
@@ -667,6 +891,174 @@ function readEnum<T extends string>(
 
   errors.push({ field, message: `Must be one of: ${allowed.join(", ")}.` });
   return "";
+}
+
+function readSocialAuthorType(value: unknown, field: string, errors: FieldError[]) {
+  return readEnum<import("@/data/olmanager/types").SocialAuthorType>(
+    value,
+    field,
+    SOCIAL_AUTHOR_TYPES,
+    errors,
+  );
+}
+
+function readOptionalString(value: unknown, field: string, errors: FieldError[]): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  errors.push({ field, message: "A string or null is required." });
+  return null;
+}
+
+function readStringArray(
+  value: unknown,
+  field: string,
+  errors: FieldError[],
+  options: { validateItems?: (item: string, index: number, errors: FieldError[]) => void } = {},
+): string[] {
+  if (!Array.isArray(value)) {
+    errors.push({ field, message: "An array of strings is required." });
+    return [];
+  }
+
+  const result: string[] = [];
+  for (let index = 0; index < value.length; index++) {
+    const item = value[index];
+    if (typeof item !== "string") {
+      errors.push({ field: `${field}[${index}]`, message: "A string is required." });
+      continue;
+    }
+
+    options.validateItems?.(item, index, errors);
+    result.push(item);
+  }
+
+  return result;
+}
+
+function readNewsHeadlines(
+  value: unknown,
+  field: string,
+  errors: FieldError[],
+): import("@/data/olmanager/types").NewsHeadline[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    errors.push({ field, message: "At least one headline is required." });
+    return [];
+  }
+
+  return value.flatMap((headline, index) => {
+    if (!isRecord(headline)) {
+      errors.push({ field: `${field}[${index}]`, message: "Headline must be an object." });
+      return [];
+    }
+
+    const key = readString(headline.key, `${field}[${index}].key`, errors);
+    const text = readString(headline.text, `${field}[${index}].text`, errors);
+
+    if (key && text) {
+      return [{ key, text }];
+    }
+
+    return [];
+  });
+}
+
+function readNewsSources(
+  value: unknown,
+  field: string,
+  errors: FieldError[],
+): import("@/data/olmanager/types").NewsSource[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    errors.push({ field, message: "At least one source is required." });
+    return [];
+  }
+
+  return value.flatMap((source, index) => {
+    if (!isRecord(source)) {
+      errors.push({ field: `${field}[${index}]`, message: "Source must be an object." });
+      return [];
+    }
+
+    const key = readString(source.key, `${field}[${index}].key`, errors);
+    const text = readString(source.text, `${field}[${index}].text`, errors);
+
+    if (key && text) {
+      return [{ key, text }];
+    }
+
+    return [];
+  });
+}
+
+function readNewsBodyVariants(
+  value: unknown,
+  field: string,
+  errors: FieldError[],
+): import("@/data/olmanager/types").NewsBodyVariant[] {
+  if (value === undefined || value === null) {
+    return [];
+  }
+
+  if (!Array.isArray(value)) {
+    errors.push({ field, message: "Body variants must be an array." });
+    return [];
+  }
+
+  return value.flatMap((variant, index) => {
+    if (!isRecord(variant)) {
+      errors.push({ field: `${field}[${index}]`, message: "Body variant must be an object." });
+      return [];
+    }
+
+    const body_key = readString(variant.body_key, `${field}[${index}].body_key`, errors);
+    const text = readString(variant.text, `${field}[${index}].text`, errors);
+
+    if (body_key && text) {
+      return [{ body_key, text }];
+    }
+
+    return [];
+  });
+}
+
+function filterSocialTemplateChanges(
+  template: import("@/data/olmanager/types").SocialTemplateData,
+  changes: EditSocialTemplatePayload["changes"],
+): EditSocialTemplatePayload["changes"] {
+  const result: EditSocialTemplatePayload["changes"] = {};
+
+  if (changes.weight !== undefined && changes.weight !== template.weight) {
+    result.weight = changes.weight;
+  }
+  if (
+    changes.variants !== undefined &&
+    JSON.stringify(changes.variants) !== JSON.stringify(template.variants)
+  ) {
+    result.variants = changes.variants;
+  }
+  if (
+    changes.tags !== undefined &&
+    JSON.stringify(changes.tags) !== JSON.stringify(template.tags)
+  ) {
+    result.tags = changes.tags;
+  }
+  if (changes.active !== undefined && changes.active !== template.active) {
+    result.active = changes.active;
+  }
+  if (changes.conditions_json !== undefined) {
+    const normalized = changes.conditions_json === "" ? null : changes.conditions_json;
+    const templateValue = template.conditions_json === "" ? null : template.conditions_json;
+    if (normalized !== templateValue) {
+      result.conditions_json = normalized;
+    }
+  }
+
+  return result;
 }
 
 function fieldFailure(field: string, message: string): ValidationResult<never> {

@@ -15,7 +15,7 @@ export default function Home() {
           Review data changes before anything ships.
         </h1>
         <p className="text-lg text-muted-foreground">
-          Contributors create typed proposals from fixture data. Reviewers inspect
+          Contributors create typed proposals from canonical LoL data. Reviewers inspect
           deterministic diffs and record stub approval or rejection decisions in this
           browser session only.
         </p>
@@ -26,7 +26,7 @@ export default function Home() {
           <div className="grid gap-2">
             <h2 className="font-heading text-xl font-medium">Open the workbench</h2>
             <p className="text-sm text-muted-foreground">
-              Create fixture-backed player proposals, inspect deterministic diffs, and
+              Create canonical-data-backed proposals, inspect deterministic diffs, and
               record stub reviewer decisions without writing to Discord, GitHub,
               production storage, assets, or ZIP exports.
             </p>

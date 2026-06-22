@@ -43,6 +43,146 @@ describe("proposal form components", () => {
     expect(screen.getByText("Computed OVR:")).toBeVisible();
     expect(screen.getByText("75")).toBeVisible();
   });
+
+  it("renders PR3 proposal forms without errors", () => {
+    const types: import("@/domain/proposals/types").ProposalType[] = [
+      "EditCompetition",
+      "AddSocialAccount",
+      "EditSocialTemplate",
+      "AddNewsTemplate",
+    ];
+
+    for (const proposalType of types) {
+      const { unmount } = render(
+        <ProposalForm proposalType={proposalType} onProposalAccepted={vi.fn()} />,
+      );
+      expect(screen.getByRole("button", { name: "Create draft proposal" })).toBeVisible();
+      unmount();
+    }
+  });
+
+  it("creates an EditCompetition proposal from the form", () => {
+    const onProposalAccepted = vi.fn();
+    render(<ProposalForm proposalType="EditCompetition" onProposalAccepted={onProposalAccepted} />);
+
+    fireEvent.change(screen.getByLabelText(/Competition/), { target: { value: "lec" } });
+    fireEvent.change(screen.getByLabelText(/Name/), { target: { value: "LEC 2026" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create draft proposal" }));
+
+    expect(onProposalAccepted).toHaveBeenCalledWith({
+      version: 2,
+      type: "EditCompetition",
+      competitionId: "lec",
+      changes: { name: "LEC 2026" },
+    });
+  });
+
+  it("shows favorite team ID errors on the AddSocialAccount form", () => {
+    const onProposalAccepted = vi.fn();
+    render(<ProposalForm proposalType="AddSocialAccount" onProposalAccepted={onProposalAccepted} />);
+
+    fireEvent.change(screen.getByLabelText(/Language/), { target: { value: "en" } });
+    fireEvent.change(screen.getByLabelText(/Display name/), { target: { value: "New Fan" } });
+    fireEvent.change(screen.getByLabelText(/Handle/), { target: { value: "@newfan" } });
+    fireEvent.change(screen.getByLabelText(/Author type/), { target: { value: "Fan" } });
+    fireEvent.change(screen.getByLabelText(/Favorite team IDs/), {
+      target: { value: "team-missing" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create draft proposal" }));
+
+    expect(screen.getByText("Team does not exist.")).toBeVisible();
+    expect(onProposalAccepted).not.toHaveBeenCalled();
+  });
+
+  it("creates an AddSocialAccount proposal with active defaulting to true", () => {
+    const onProposalAccepted = vi.fn();
+    render(<ProposalForm proposalType="AddSocialAccount" onProposalAccepted={onProposalAccepted} />);
+
+    fireEvent.change(screen.getByLabelText(/Language/), { target: { value: "en" } });
+    fireEvent.change(screen.getByLabelText(/Display name/), { target: { value: "New Fan" } });
+    fireEvent.change(screen.getByLabelText(/Handle/), { target: { value: "@newfan" } });
+    fireEvent.change(screen.getByLabelText(/Author type/), { target: { value: "Fan" } });
+    fireEvent.change(screen.getByLabelText(/Favorite team IDs/), {
+      target: { value: "lec-g2-esports" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create draft proposal" }));
+
+    expect(onProposalAccepted).toHaveBeenCalledWith({
+      version: 2,
+      type: "AddSocialAccount",
+      account: {
+        language: "en",
+        display_name: "New Fan",
+        handle: "@newfan",
+        author_type: "Fan",
+        profile_image_url: null,
+        favorite_team_ids: ["lec-g2-esports"],
+        active: true,
+      },
+    });
+  });
+
+  it("creates an EditSocialTemplate proposal from the form", () => {
+    const onProposalAccepted = vi.fn();
+    render(<ProposalForm proposalType="EditSocialTemplate" onProposalAccepted={onProposalAccepted} />);
+
+    fireEvent.change(screen.getByLabelText(/Social template/), {
+      target: { value: "team-banter-en-1" },
+    });
+    fireEvent.change(screen.getByLabelText(/Weight/), { target: { value: "7" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create draft proposal" }));
+
+    expect(onProposalAccepted).toHaveBeenCalledWith({
+      version: 2,
+      type: "EditSocialTemplate",
+      templateId: "team-banter-en-1",
+      changes: { weight: 7 },
+    });
+  });
+
+  it("creates an AddNewsTemplate proposal with body_variants", () => {
+    const onProposalAccepted = vi.fn();
+    render(<ProposalForm proposalType="AddNewsTemplate" onProposalAccepted={onProposalAccepted} />);
+
+    fireEvent.change(screen.getByLabelText(/Category/), { target: { value: "Editorial" } });
+    fireEvent.change(screen.getByLabelText(/Headline key/), { target: { value: "be.news.test.headline" } });
+    fireEvent.change(screen.getByLabelText(/Headline text/), { target: { value: "Test headline" } });
+    fireEvent.change(screen.getByLabelText(/Body variant key/), {
+      target: { value: "be.news.test.body" },
+    });
+    fireEvent.change(screen.getByLabelText(/Body variant text/), {
+      target: { value: "Test variant {team}." },
+    });
+    fireEvent.change(screen.getByLabelText(/Source key/), { target: { value: "be.source.test" } });
+    fireEvent.change(screen.getByLabelText(/Source text/), { target: { value: "Test Source" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create draft proposal" }));
+
+    expect(onProposalAccepted).toHaveBeenCalledWith({
+      version: 2,
+      type: "AddNewsTemplate",
+      template: {
+        category: "Editorial",
+        headlines: [{ key: "be.news.test.headline", text: "Test headline" }],
+        sources: [{ key: "be.source.test", text: "Test Source" }],
+        body_variants: [{ body_key: "be.news.test.body", text: "Test variant {team}." }],
+      },
+    });
+  });
+
+  it("shows a body error when AddNewsTemplate form has neither body nor body_variants", () => {
+    const onProposalAccepted = vi.fn();
+    render(<ProposalForm proposalType="AddNewsTemplate" onProposalAccepted={onProposalAccepted} />);
+
+    fireEvent.change(screen.getByLabelText(/Category/), { target: { value: "Editorial" } });
+    fireEvent.change(screen.getByLabelText(/Headline key/), { target: { value: "be.news.test.headline" } });
+    fireEvent.change(screen.getByLabelText(/Headline text/), { target: { value: "Test headline" } });
+    fireEvent.change(screen.getByLabelText(/Source key/), { target: { value: "be.source.test" } });
+    fireEvent.change(screen.getByLabelText(/Source text/), { target: { value: "Test Source" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create draft proposal" }));
+
+    expect(screen.getByText("Body or at least one body variant is required.")).toBeVisible();
+    expect(onProposalAccepted).not.toHaveBeenCalled();
+  });
 });
 
 describe("proposal review components", () => {
