@@ -149,6 +149,9 @@ function ProposalsWorkbench() {
                       ))}
                     </div>
                     <p className="text-sm">{gh.title}</p>
+                    <pre className="mt-2 max-h-48 overflow-y-auto rounded-md bg-muted p-3 text-xs leading-relaxed whitespace-pre-wrap break-words">
+                      {gh.body}
+                    </pre>
                     <p className="text-xs text-muted-foreground">
                       by {gh.author} · {new Date(gh.createdAt).toLocaleDateString()}
                     </p>

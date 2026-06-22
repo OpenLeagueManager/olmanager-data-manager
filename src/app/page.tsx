@@ -15,9 +15,9 @@ export default function Home() {
           Review data changes before anything ships.
         </h1>
         <p className="text-lg text-muted-foreground">
-          Contributors create typed proposals from canonical LoL data. Reviewers inspect
-          deterministic diffs and record stub approval or rejection decisions in this
-          browser session only.
+          Contributors create typed proposals from canonical LoL data. Maintainers review
+          deterministic diffs and approve changes that are committed directly to the data
+          repository via GitHub.
         </p>
       </section>
 
@@ -47,12 +47,12 @@ export default function Home() {
       <Card>
         <CardContent className="grid gap-3">
           <div className="flex items-center gap-2">
-            <h2 className="font-heading text-xl font-medium">MVP boundary</h2>
-            <Badge variant="primary">Session-only</Badge>
+            <h2 className="font-heading text-xl font-medium">GitHub-backed</h2>
+            <Badge variant="primary">Production</Badge>
           </div>
           <p className="text-sm text-muted-foreground">
-            This is a safe review loop, not a production pipeline. Proposals stay
-            session-backed; no production integrations run on approval.
+            Proposals are created as GitHub Issues. Approved changes are committed
+            directly to the data repository. Sign in with Discord to contribute.
           </p>
         </CardContent>
       </Card>

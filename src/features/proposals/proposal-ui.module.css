@@ -151,8 +151,10 @@
 .control {
   border: 1px solid var(--border);
   border-radius: 0.5rem;
+  box-sizing: border-box;
   font: inherit;
   padding: 0.625rem 0.75rem;
+  width: 100%;
 }
 
 .control:user-invalid,
