@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PROPOSAL_TYPE_METADATA } from "@/domain/proposals/metadata";
-import type { ProposalId, ProposalReview, ProposalType } from "@/domain/proposals/types";
+import type { ProposalId, ProposalPayload, ProposalReview, ProposalType } from "@/domain/proposals/types";
 import {
   NON_PRODUCTION_SESSION_STORE_NOTICE,
   ProposalDetail,
@@ -111,7 +113,42 @@ function ProposalsWorkbench() {
 
 function NewProposalWorkbench({ proposalType, initialEntityId }: { proposalType: ProposalType; initialEntityId?: string }) {
   const router = useRouter();
+  const { data: session } = useSession();
   const { addDraft } = useProposalSessionStore();
+  const [githubStatus, setGithubStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [issueUrl, setIssueUrl] = useState<string | null>(null);
+
+  async function handleProposalAccepted(payload: ProposalPayload) {
+    if (session?.user) {
+      // GitHub-backed: create issue
+      setGithubStatus("loading");
+      try {
+        const res = await fetch("/api/proposals", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            payload,
+            author: session.user.name || session.user.id,
+          }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || "Failed to create proposal");
+        }
+
+        const data = await res.json();
+        setIssueUrl(data.issueUrl);
+        setGithubStatus("success");
+      } catch {
+        setGithubStatus("error");
+      }
+    } else {
+      // Fallback: session-only
+      const proposal = addDraft(payload);
+      router.push(`/proposals/${proposal.id}`);
+    }
+  }
 
   return (
     <div className={`${styles.page} ${styles.narrowPage}`}>
@@ -129,14 +166,54 @@ function NewProposalWorkbench({ proposalType, initialEntityId }: { proposalType:
             rules before creating a reviewable draft.
           </p>
         </div>
-        <ProposalForm
-          onProposalAccepted={(payload) => {
-            const proposal = addDraft(payload);
-            router.push(`/proposals/${proposal.id}`);
-          }}
-          proposalType={proposalType}
-          initialEntityId={initialEntityId}
-        />
+
+        {githubStatus === "success" && issueUrl ? (
+          <div className={styles.card}>
+            <p className={styles.notice}>
+              ✅ Proposal created as{" "}
+              <a
+                className={styles.textLink}
+                href={issueUrl}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                GitHub Issue
+              </a>
+              .
+            </p>
+            <div className={styles.buttonRow}>
+              <Button onClick={() => { setGithubStatus("idle"); setIssueUrl(null); }} type="button">
+                Create another
+              </Button>
+              <Button
+                onClick={() => router.push("/proposals")}
+                type="button"
+                variant="secondary"
+              >
+                Back to proposals
+              </Button>
+            </div>
+          </div>
+        ) : githubStatus === "error" ? (
+          <div className={styles.card}>
+            <p className={styles.notice}>
+              ⚠️ Failed to create GitHub Issue. Check that the GitHub App is configured.
+            </p>
+            <Button onClick={() => setGithubStatus("idle")} type="button" variant="secondary">
+              Try again
+            </Button>
+          </div>
+        ) : (
+          <ProposalForm
+            onProposalAccepted={handleProposalAccepted}
+            proposalType={proposalType}
+            initialEntityId={initialEntityId}
+          />
+        )}
+
+        {githubStatus === "loading" ? (
+          <p className={styles.notice}>Creating GitHub Issue…</p>
+        ) : null}
       </section>
     </div>
   );
