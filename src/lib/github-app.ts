@@ -218,4 +218,20 @@ export async function closeProposalIssue(
   });
 }
 
+/**
+ * Get the full body of a GitHub issue.
+ */
+export async function getIssueBody(issueNumber: number): Promise<string> {
+  const octokit = await getInstallationOctokit();
+  const [owner, repo] = APP_REPO.split("/");
+
+  const { data: issue } = await octokit.issues.get({
+    owner,
+    repo,
+    issue_number: issueNumber,
+  });
+
+  return issue.body ?? "";
+}
+
 export { DATA_REPO, APP_REPO };

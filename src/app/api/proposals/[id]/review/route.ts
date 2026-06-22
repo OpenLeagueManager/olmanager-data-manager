@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { closeProposalIssue, commitToDataRepo } from "@/lib/github-app";
+import { closeProposalIssue, commitToDataRepo, getIssueBody } from "@/lib/github-app";
 import { isMaintainer } from "@/lib/permissions";
+import { applyProposalChanges } from "@/lib/apply-changes";
 
 export async function POST(
   request: Request,
@@ -41,13 +42,23 @@ export async function POST(
 
     let commitSha: string | null = null;
 
-    // On approve with files, commit directly to the data repo
-    if (body.action === "approve" && body.files?.length) {
-      const result = await commitToDataRepo({
-        message: `Apply proposal #${issueNumber} (approved by ${reviewer})`,
-        files: body.files,
-      });
-      commitSha = result.commitSha;
+    // On approve, apply data changes automatically
+    if (body.action === "approve") {
+      // If files were sent explicitly, use those. Otherwise parse the issue body.
+      let files = body.files;
+
+      if (!files?.length) {
+        const issueBody = await getIssueBody(issueNumber);
+        files = applyProposalChanges(issueBody) ?? [];
+      }
+
+      if (files.length > 0) {
+        const result = await commitToDataRepo({
+          message: `Apply proposal #${issueNumber} (approved by ${reviewer})`,
+          files,
+        });
+        commitSha = result.commitSha;
+      }
     }
 
     return NextResponse.json({
