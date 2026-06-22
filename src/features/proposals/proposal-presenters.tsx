@@ -123,6 +123,14 @@ function proposalTitle(payload: ProposalPayload) {
       return `Release ${payload.staffId}`;
     case "EditTeam":
       return `Edit ${payload.teamId}`;
+    case "EditCompetition":
+      return `Edit ${payload.competitionId}`;
+    case "AddSocialAccount":
+      return `Add ${payload.account.handle}`;
+    case "EditSocialTemplate":
+      return `Edit ${payload.templateId}`;
+    case "AddNewsTemplate":
+      return `Add ${payload.template.category} news template`;
   }
 }
 

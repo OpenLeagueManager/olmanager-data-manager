@@ -64,7 +64,7 @@ describe("proposal validation", () => {
         {
           field: "type",
           message:
-            "Unsupported proposal type. Supported PR2 types: AddPlayer, EditPlayer, TransferPlayer, AddStaff, EditStaff, ReleaseStaff, EditTeam.",
+            "Unsupported proposal type. Supported types: AddPlayer, EditPlayer, TransferPlayer, AddStaff, EditStaff, ReleaseStaff, EditTeam, EditCompetition, AddSocialAccount, EditSocialTemplate, AddNewsTemplate.",
         },
       ],
     });
@@ -294,19 +294,148 @@ describe("proposal validation", () => {
     }
   });
 
-  it("rejects PR3 proposal types with an explicit error", () => {
-    const result = validateProposal({
+  it("accepts valid PR3 proposal types", () => {
+    const editCompetition = validateProposal({
+      version: 2,
+      type: "EditCompetition",
+      competitionId: "lec",
+      changes: { name: "LEC 2026" },
+    });
+    expect(editCompetition.ok).toBe(true);
+
+    const addSocialAccount = validateProposal({
       version: 2,
       type: "AddSocialAccount",
-      account: {},
-    } as unknown);
+      account: {
+        language: "en",
+        display_name: "New Fan",
+        handle: "@newfan",
+        author_type: "Fan",
+        profile_image_url: null,
+        favorite_team_ids: ["lec-g2-esports"],
+        active: true,
+      },
+    });
+    expect(addSocialAccount.ok).toBe(true);
+
+    const editSocialTemplate = validateProposal({
+      version: 2,
+      type: "EditSocialTemplate",
+      templateId: "team-banter-en-1",
+      changes: { weight: 7 },
+    });
+    expect(editSocialTemplate.ok).toBe(true);
+
+    const addNewsTemplate = validateProposal({
+      version: 2,
+      type: "AddNewsTemplate",
+      template: {
+        category: "Editorial",
+        headlines: [{ key: "be.news.test.headline", text: "Test headline" }],
+        body: "Test body {team}.",
+        sources: [{ key: "be.source.test", text: "Test Source" }],
+      },
+    });
+    expect(addNewsTemplate.ok).toBe(true);
+  });
+
+  it("rejects EditSocialTemplate with no visible change", () => {
+    const nullConditionsResult = validateProposal({
+      version: 2,
+      type: "EditSocialTemplate",
+      templateId: "team-banter-en-1",
+      changes: { conditions_json: null },
+    });
+
+    expect(nullConditionsResult.ok).toBe(false);
+    if (!nullConditionsResult.ok) {
+      expect(nullConditionsResult.errors).toContainEqual({
+        field: "changes",
+        message: "At least one change is required.",
+      });
+    }
+
+    const blankConditionsResult = validateProposal({
+      version: 2,
+      type: "EditSocialTemplate",
+      templateId: "team-banter-en-1",
+      changes: { conditions_json: "" },
+    });
+
+    expect(blankConditionsResult.ok).toBe(false);
+    if (!blankConditionsResult.ok) {
+      expect(blankConditionsResult.errors).toContainEqual({
+        field: "changes",
+        message: "At least one change is required.",
+      });
+    }
+  });
+
+  it("accepts AddNewsTemplate with body_variants instead of body", () => {
+    const result = validateProposal({
+      version: 2,
+      type: "AddNewsTemplate",
+      template: {
+        category: "Editorial",
+        headlines: [{ key: "be.news.test.headline", text: "Test headline" }],
+        body_variants: [{ body_key: "be.news.test.body", text: "Test variant {team}." }],
+        sources: [{ key: "be.source.test", text: "Test Source" }],
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok && result.value.type === "AddNewsTemplate") {
+      expect(result.value.template.body).toBeUndefined();
+      expect(result.value.template.body_variants).toEqual([
+        { body_key: "be.news.test.body", text: "Test variant {team}." },
+      ]);
+    }
+  });
+
+  it("rejects AddNewsTemplate when both body and body_variants are missing", () => {
+    const result = validateProposal({
+      version: 2,
+      type: "AddNewsTemplate",
+      template: {
+        category: "Editorial",
+        headlines: [{ key: "be.news.test.headline", text: "Test headline" }],
+        sources: [{ key: "be.source.test", text: "Test Source" }],
+      },
+    });
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.errors).toContainEqual({
-        field: "type",
-        message:
-          "Unsupported proposal type. Supported PR2 types: AddPlayer, EditPlayer, TransferPlayer, AddStaff, EditStaff, ReleaseStaff, EditTeam.",
+        field: "template.body",
+        message: "Body or at least one body variant is required.",
+      });
+    }
+  });
+
+  it("rejects AddSocialAccount with invalid author type and missing team references", () => {
+    const result = validateProposal({
+      version: 2,
+      type: "AddSocialAccount",
+      account: {
+        language: "en",
+        display_name: "New Fan",
+        handle: "@newfan",
+        author_type: "InvalidType",
+        profile_image_url: null,
+        favorite_team_ids: ["team-missing"],
+        active: true,
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.errors).toContainEqual({
+        field: "account.author_type",
+        message: "Must be one of: Team, Player, Fan, Analyst, Journalist, MemeAccount, Manager.",
+      });
+      expect(result.errors).toContainEqual({
+        field: "account.favorite_team_ids[0]",
+        message: "Team does not exist.",
       });
     }
   });
@@ -367,6 +496,105 @@ describe("proposal diffs", () => {
     expect(ovr).toBe(89);
   });
 
+  it("emits competition changes for EditCompetition", () => {
+    const proposal: ProposalPayload = {
+      version: 2,
+      type: "EditCompetition",
+      competitionId: "lec",
+      changes: { name: "LEC 2026" },
+    };
+
+    expect(buildProposalDiff(proposal)).toContainEqual({
+      field: "changes.name",
+      before: "LEC",
+      after: "LEC 2026",
+      severity: "info",
+    });
+  });
+
+  it("emits social account fields for AddSocialAccount", () => {
+    const proposal: ProposalPayload = {
+      version: 2,
+      type: "AddSocialAccount",
+      account: {
+        language: "en",
+        display_name: "New Fan",
+        handle: "@newfan",
+        author_type: "Fan",
+        profile_image_url: null,
+        favorite_team_ids: [],
+        active: true,
+      },
+    };
+
+    const diff = buildProposalDiff(proposal);
+    expect(diff).toContainEqual({
+      field: "account.handle",
+      before: null,
+      after: "@newfan",
+      severity: "info",
+    });
+  });
+
+  it("emits social template changes for EditSocialTemplate", () => {
+    const proposal: ProposalPayload = {
+      version: 2,
+      type: "EditSocialTemplate",
+      templateId: "team-banter-en-1",
+      changes: { weight: 7, tags: ["match", "team"] },
+    };
+
+    const diff = buildProposalDiff(proposal);
+    expect(diff).toContainEqual({
+      field: "changes.weight",
+      before: 5,
+      after: 7,
+      severity: "info",
+    });
+  });
+
+  it("emits news template fields for AddNewsTemplate", () => {
+    const proposal: ProposalPayload = {
+      version: 2,
+      type: "AddNewsTemplate",
+      template: {
+        category: "Editorial",
+        headlines: [{ key: "be.news.test.headline", text: "Test headline" }],
+        body: "Test body.",
+        sources: [{ key: "be.source.test", text: "Test Source" }],
+      },
+    };
+
+    const diff = buildProposalDiff(proposal);
+    expect(diff).toContainEqual({
+      field: "template.category",
+      before: null,
+      after: "Editorial",
+      severity: "info",
+    });
+  });
+
+  it("emits body_variants diff for AddNewsTemplate when body is absent", () => {
+    const proposal: ProposalPayload = {
+      version: 2,
+      type: "AddNewsTemplate",
+      template: {
+        category: "Editorial",
+        headlines: [{ key: "be.news.test.headline", text: "Test headline" }],
+        body_variants: [{ body_key: "be.news.test.body", text: "Test variant {team}." }],
+        sources: [{ key: "be.source.test", text: "Test Source" }],
+      },
+    };
+
+    const diff = buildProposalDiff(proposal);
+    expect(diff).toContainEqual({
+      field: "template.body_variants",
+      before: null,
+      after: "be.news.test.body: Test variant {team}.",
+      severity: "info",
+    });
+    expect(diff.some((record) => record.field === "template.body")).toBe(false);
+  });
 });
 
 describe("review state transitions", () => {

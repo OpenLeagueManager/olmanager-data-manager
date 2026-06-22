@@ -1,9 +1,17 @@
 "use client";
 
 import { useId, useMemo, useState, type FormEvent } from "react";
-import { getEmbeddedCompetition } from "@/data/olmanager/embedded";
+import {
+  getEmbeddedCompetition,
+  getEmbeddedSocialCatalog,
+} from "@/data/olmanager/embedded";
 import { calculateLolOvr, PLAYER_RATING_HINT } from "@/data/olmanager/rating";
-import { LOL_ROLES, PLAYER_ATTRIBUTE_KEYS, STAFF_ATTRIBUTE_KEYS } from "@/data/olmanager/types";
+import {
+  LOL_ROLES,
+  PLAYER_ATTRIBUTE_KEYS,
+  SOCIAL_AUTHOR_TYPES,
+  STAFF_ATTRIBUTE_KEYS,
+} from "@/data/olmanager/types";
 import { PROPOSAL_TYPE_METADATA } from "@/domain/proposals/metadata";
 import type { FieldError, ProposalPayload, ProposalType } from "@/domain/proposals/types";
 import { validateProposal } from "@/domain/proposals/validation";
@@ -14,6 +22,7 @@ import { Select } from "@/components/ui/select";
 import styles from "./proposal-ui.module.css";
 
 const game = getEmbeddedCompetition();
+const socialCatalog = getEmbeddedSocialCatalog();
 
 type ProposalFormProps = {
   proposalType: ProposalType;
@@ -54,6 +63,10 @@ export function ProposalForm({ proposalType, onProposalAccepted }: ProposalFormP
         {proposalType === "EditStaff" ? <EditStaffFields errors={errorMap} /> : null}
         {proposalType === "ReleaseStaff" ? <ReleaseStaffFields errors={errorMap} /> : null}
         {proposalType === "EditTeam" ? <EditTeamFields errors={errorMap} /> : null}
+        {proposalType === "EditCompetition" ? <EditCompetitionFields errors={errorMap} /> : null}
+        {proposalType === "AddSocialAccount" ? <AddSocialAccountFields errors={errorMap} /> : null}
+        {proposalType === "EditSocialTemplate" ? <EditSocialTemplateFields errors={errorMap} /> : null}
+        {proposalType === "AddNewsTemplate" ? <AddNewsTemplateFields errors={errorMap} /> : null}
       </fieldset>
       <div className={styles.buttonRow}>
         <Button type="submit" variant="primary">
@@ -233,6 +246,124 @@ function EditTeamFields({ errors }: { errors: ErrorMap }) {
   );
 }
 
+function EditCompetitionFields({ errors }: { errors: ErrorMap }) {
+  return (
+    <>
+      <CompetitionSelect error={errors.competitionId} name="competitionId" required />
+      <TextField error={errors["changes.name"]} label="Name" name="changes.name" />
+      <TextField error={errors["changes.full_name"]} label="Full name" name="changes.full_name" />
+      <TextField error={errors["changes.logo"]} label="Logo path" name="changes.logo" />
+      <NumberField
+        error={errors["changes.tier"]}
+        hint="Integer 1 or higher."
+        label="Tier"
+        min={1}
+        name="changes.tier"
+      />
+      <TriStateSelect error={errors["changes.active"]} label="Active" name="changes.active" />
+    </>
+  );
+}
+
+function AddSocialAccountFields({ errors }: { errors: ErrorMap }) {
+  return (
+    <>
+      <TextField error={errors["account.language"]} label="Language" name="account.language" required />
+      <TextField error={errors["account.display_name"]} label="Display name" name="account.display_name" required />
+      <TextField error={errors["account.handle"]} label="Handle" name="account.handle" required />
+      <SocialAuthorSelect
+        error={errors["account.author_type"]}
+        name="account.author_type"
+        required
+      />
+      <TextField
+        error={errors["account.profile_image_url"]}
+        label="Profile image URL"
+        name="account.profile_image_url"
+      />
+      <TextField
+        error={errors["account.favorite_team_ids"] ?? errors["account.favorite_team_ids[0]"]}
+        label="Favorite team IDs (comma-separated)"
+        name="account.favorite_team_ids"
+      />
+      <AddActiveSelect error={errors["account.active"]} name="account.active" />
+    </>
+  );
+}
+
+function EditSocialTemplateFields({ errors }: { errors: ErrorMap }) {
+  return (
+    <>
+      <SocialTemplateSelect error={errors.templateId} name="templateId" required />
+      <NumberField
+        error={errors["changes.weight"]}
+        hint="Integer 0 or higher."
+        label="Weight"
+        name="changes.weight"
+      />
+      <TriStateSelect error={errors["changes.active"]} label="Active" name="changes.active" />
+      <TextField
+        error={errors["changes.conditions_json"]}
+        label="Conditions JSON"
+        name="changes.conditions_json"
+      />
+      <TextAreaField
+        error={errors["changes.variants"]}
+        label="Variants (one per line)"
+        name="changes.variants"
+      />
+      <TextAreaField
+        error={errors["changes.tags"]}
+        label="Tags (one per line)"
+        name="changes.tags"
+      />
+    </>
+  );
+}
+
+function AddNewsTemplateFields({ errors }: { errors: ErrorMap }) {
+  return (
+    <>
+      <TextField error={errors["template.category"]} label="Category" name="template.category" required />
+      <TextField
+        error={errors["template.headlines[0].key"]}
+        label="Headline key"
+        name="template.headlines[0].key"
+        required
+      />
+      <TextField
+        error={errors["template.headlines[0].text"]}
+        label="Headline text"
+        name="template.headlines[0].text"
+        required
+      />
+      <TextAreaField error={errors["template.body"]} label="Body" name="template.body" />
+      <TextField
+        error={errors["template.body_variants[0].body_key"]}
+        label="Body variant key"
+        name="template.body_variants[0].body_key"
+      />
+      <TextAreaField
+        error={errors["template.body_variants[0].text"]}
+        label="Body variant text"
+        name="template.body_variants[0].text"
+      />
+      <TextField
+        error={errors["template.sources[0].key"]}
+        label="Source key"
+        name="template.sources[0].key"
+        required
+      />
+      <TextField
+        error={errors["template.sources[0].text"]}
+        label="Source text"
+        name="template.sources[0].text"
+        required
+      />
+    </>
+  );
+}
+
 function TextField({
   error,
   hint,
@@ -273,6 +404,37 @@ function TextField({
 
 function NumberField({
   error,
+  hint = PLAYER_RATING_HINT,
+  label,
+  min = 0,
+  name,
+  required = false,
+}: {
+  error?: string;
+  hint?: string;
+  label: string;
+  min?: number;
+  name: string;
+  required?: boolean;
+}) {
+  const id = useId();
+  return (
+    <Field error={error} hint={hint} htmlFor={id} label={label} required={required}>
+      <input
+        className={styles.control}
+        id={id}
+        min={min}
+        name={name}
+        required={required}
+        step={1}
+        type="number"
+      />
+    </Field>
+  );
+}
+
+function TextAreaField({
+  error,
   label,
   name,
   required = false,
@@ -284,15 +446,13 @@ function NumberField({
 }) {
   const id = useId();
   return (
-    <Field error={error} hint={PLAYER_RATING_HINT} htmlFor={id} label={label} required={required}>
-      <input
+    <Field error={error} htmlFor={id} label={label} required={required}>
+      <textarea
         className={styles.control}
         id={id}
-        min={0}
         name={name}
         required={required}
-        step={1}
-        type="number"
+        rows={4}
       />
     </Field>
   );
@@ -402,6 +562,55 @@ function CompetitionSelect({ error, name, required = false }: { error?: string; 
   );
 }
 
+function SocialAuthorSelect({
+  error,
+  name,
+  required = false,
+}: {
+  error?: string;
+  name: string;
+  required?: boolean;
+}) {
+  const id = useId();
+  const options = SOCIAL_AUTHOR_TYPES.map((type) => ({ value: type, label: type }));
+  return (
+    <Field error={error} htmlFor={id} label="Author type" required={required}>
+      <Select
+        id={id}
+        name={name}
+        options={[{ value: "", label: "Select an author type" }, ...options]}
+        required={required}
+      />
+    </Field>
+  );
+}
+
+function SocialTemplateSelect({
+  error,
+  name,
+  required = false,
+}: {
+  error?: string;
+  name: string;
+  required?: boolean;
+}) {
+  const id = useId();
+  const options = socialCatalog.templates.map((template) => ({
+    value: template.id,
+    label: `${template.slot} (${template.language})`,
+  }));
+  return (
+    <Field error={error} htmlFor={id} label="Social template" required={required}>
+      <Select
+        id={id}
+        name={name}
+        options={[{ value: "", label: "Select a social template" }, ...options]}
+        required={required}
+      />
+    </Field>
+  );
+}
+
 function TriStateSelect({
   error,
   label,
@@ -419,6 +628,23 @@ function TriStateSelect({
         name={name}
         options={[
           { value: "", label: "No change" },
+          { value: "true", label: "Yes" },
+          { value: "false", label: "No" },
+        ]}
+      />
+    </Field>
+  );
+}
+
+function AddActiveSelect({ error, name }: { error?: string; name: string }) {
+  const id = useId();
+  return (
+    <Field error={error} htmlFor={id} label="Active (defaults to Yes)">
+      <Select
+        id={id}
+        name={name}
+        options={[
+          { value: "", label: "Yes (default)" },
           { value: "true", label: "Yes" },
           { value: "false", label: "No" },
         ]}
@@ -611,6 +837,77 @@ function payloadFromForm(proposalType: ProposalType, formData: FormData): Propos
           training_intensity: readFormString(formData, "changes.training_intensity"),
         }),
       };
+    case "EditCompetition":
+      return {
+        version: 2,
+        type: "EditCompetition",
+        competitionId: readFormString(formData, "competitionId"),
+        changes: compactChanges({
+          name: readFormString(formData, "changes.name"),
+          full_name: readFormString(formData, "changes.full_name"),
+          logo: readFormString(formData, "changes.logo"),
+          tier: readOptionalFormNumber(formData, "changes.tier"),
+          active: readTriState(formData, "changes.active"),
+        }),
+      };
+    case "AddSocialAccount":
+      return {
+        version: 2,
+        type: "AddSocialAccount",
+        account: {
+          language: readFormString(formData, "account.language"),
+          display_name: readFormString(formData, "account.display_name"),
+          handle: readFormString(formData, "account.handle"),
+          author_type: readFormString(formData, "account.author_type") as import("@/data/olmanager/types").SocialAuthorType,
+          profile_image_url: readNullableFormString(formData, "account.profile_image_url"),
+          favorite_team_ids: readCommaSeparatedStrings(formData, "account.favorite_team_ids"),
+          active: readTriState(formData, "account.active") ?? true,
+        },
+      };
+    case "EditSocialTemplate":
+      return {
+        version: 2,
+        type: "EditSocialTemplate",
+        templateId: readFormString(formData, "templateId"),
+        changes: compactChanges({
+          weight: readOptionalFormNumber(formData, "changes.weight"),
+          active: readTriState(formData, "changes.active"),
+          conditions_json: readNullableFormString(formData, "changes.conditions_json"),
+          variants: readLines(formData, "changes.variants"),
+          tags: readLines(formData, "changes.tags"),
+        }),
+      };
+    case "AddNewsTemplate": {
+      const body = readFormString(formData, "template.body");
+      const bodyVariantKey = readFormString(formData, "template.body_variants[0].body_key");
+      const bodyVariantText = readFormString(formData, "template.body_variants[0].text");
+      const body_variants =
+        body === "" && bodyVariantText !== ""
+          ? [{ body_key: bodyVariantKey, text: bodyVariantText }]
+          : undefined;
+
+      return {
+        version: 2,
+        type: "AddNewsTemplate",
+        template: {
+          category: readFormString(formData, "template.category"),
+          headlines: [
+            {
+              key: readFormString(formData, "template.headlines[0].key"),
+              text: readFormString(formData, "template.headlines[0].text"),
+            },
+          ],
+          body: body === "" ? undefined : body,
+          sources: [
+            {
+              key: readFormString(formData, "template.sources[0].key"),
+              text: readFormString(formData, "template.sources[0].text"),
+            },
+          ],
+          ...(body_variants && { body_variants }),
+        },
+      };
+    }
     default:
       throw new Error(`Unsupported proposal type: ${proposalType}`);
   }
@@ -651,6 +948,37 @@ function readPartialFormAttributes(formData: FormData, prefix: string, keys: str
     }
   }
   return Object.keys(attributes).length > 0 ? attributes : undefined;
+}
+
+function readNullableFormString(formData: FormData, name: string): string | null {
+  const value = readFormString(formData, name);
+  return value === "" ? null : value;
+}
+
+function readCommaSeparatedStrings(formData: FormData, name: string): string[] {
+  const value = readFormString(formData, name);
+  if (value === "") {
+    return [];
+  }
+
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function readLines(formData: FormData, name: string): string[] | undefined {
+  const value = readFormString(formData, name);
+  if (value === "") {
+    return undefined;
+  }
+
+  const lines = value
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  return lines.length > 0 ? lines : undefined;
 }
 
 function compactChanges<T extends Record<string, unknown>>(changes: T): Partial<T> {

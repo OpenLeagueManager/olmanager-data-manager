@@ -187,6 +187,16 @@ export type CompetitionData = {
   staff: Staff[];
 };
 
+export const SOCIAL_AUTHOR_TYPES: readonly SocialAuthorType[] = [
+  "Team",
+  "Player",
+  "Fan",
+  "Analyst",
+  "Journalist",
+  "MemeAccount",
+  "Manager",
+];
+
 export type SocialAuthorType =
   | "Team"
   | "Player"
@@ -252,4 +262,36 @@ export type MessageSender = {
 
 export type MessageCatalog = {
   senders: MessageSender[];
+};
+
+export type NewsHeadline = {
+  key: string;
+  text: string;
+};
+
+export type NewsBodyVariant = {
+  body_key: string;
+  text: string;
+};
+
+export type NewsSource = {
+  key: string;
+  text: string;
+};
+
+export type NewsTranslation = {
+  headlines?: NewsHeadline[];
+  body?: string;
+  body_variants?: NewsBodyVariant[];
+};
+
+export type NewsTemplate = {
+  id: string;
+  category: string;
+  headlines: NewsHeadline[];
+  body?: string;
+  body_key?: string;
+  body_variants?: NewsBodyVariant[];
+  sources: NewsSource[];
+  translations?: Record<string, NewsTranslation>;
 };

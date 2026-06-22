@@ -1,0 +1,33 @@
+{
+  "templates": [
+    {
+      "id": "team-banter-en-1",
+      "language": "en",
+      "slot": "TeamBanter",
+      "weight": 5,
+      "author_id": null,
+      "conditions_json": null,
+      "variants": [
+        "GG {loser_short_name}. Clean series, clean comms, clean finish. {score}",
+        "Big win today. Thank you for showing up with us. #Go{winner_short_name}",
+        "We take the {score} and keep moving. One step at a time."
+      ],
+      "tags": ["match", "team", "global"],
+      "active": true
+    },
+    {
+      "id": "fan-opinion-en-1",
+      "language": "en",
+      "slot": "FanOpinion",
+      "weight": 5,
+      "author_id": "fan_random_lec",
+      "conditions_json": null,
+      "variants": [
+        "That was a very serious game from {winner_short_name}. Good League is still good League.",
+        "{winner_short_name} won and the timeline is already talking playoffs. Classic."
+      ],
+      "tags": ["fan", "match", "global"],
+      "active": true
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+[
+  {
+    "id": "al_lio",
+    "name": "Al Lío Podcast",
+    "name_key": "be.sender.alLio",
+    "role": "Podcast",
+    "role_key": "be.role.podcast",
+    "icon": "allio.jpg"
+  },
+  {
+    "id": "director_of_football",
+    "name": "Director of Football",
+    "name_key": "be.sender.directorOfFootball",
+    "role": "Director",
+    "role_key": "be.role.director",
+    "icon": "director.jpg"
+  }
+]

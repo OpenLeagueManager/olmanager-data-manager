@@ -1,8 +1,14 @@
+
+
 import type {
+  CompetitionManifest,
   NewPlayerInput,
   NewStaffInput,
+  NewsTemplate,
   Player,
   PlayerAttributes,
+  SocialAccountData,
+  SocialTemplateData,
   Staff,
   StaffAttributes,
   Team,
@@ -21,7 +27,11 @@ export type ProposalType =
   | "AddStaff"
   | "EditStaff"
   | "ReleaseStaff"
-  | "EditTeam";
+  | "EditTeam"
+  | "EditCompetition"
+  | "AddSocialAccount"
+  | "EditSocialTemplate"
+  | "AddNewsTemplate";
 
 export type AddPlayerPayload = {
   version: 2;
@@ -103,6 +113,32 @@ export type EditTeamPayload = {
   >;
 };
 
+export type EditCompetitionPayload = {
+  version: 2;
+  type: "EditCompetition";
+  competitionId: CompetitionId;
+  changes: Partial<Pick<CompetitionManifest, "name" | "full_name" | "logo" | "tier" | "active">>;
+};
+
+export type AddSocialAccountPayload = {
+  version: 2;
+  type: "AddSocialAccount";
+  account: Omit<SocialAccountData, "id">;
+};
+
+export type EditSocialTemplatePayload = {
+  version: 2;
+  type: "EditSocialTemplate";
+  templateId: string;
+  changes: Partial<Pick<SocialTemplateData, "weight" | "variants" | "tags" | "active" | "conditions_json">>;
+};
+
+export type AddNewsTemplatePayload = {
+  version: 2;
+  type: "AddNewsTemplate";
+  template: Omit<NewsTemplate, "id">;
+};
+
 export type V2ProposalPayload =
   | AddPlayerPayload
   | EditPlayerPayload
@@ -110,7 +146,11 @@ export type V2ProposalPayload =
   | AddStaffPayload
   | EditStaffPayload
   | ReleaseStaffPayload
-  | EditTeamPayload;
+  | EditTeamPayload
+  | EditCompetitionPayload
+  | AddSocialAccountPayload
+  | EditSocialTemplatePayload
+  | AddNewsTemplatePayload;
 
 export type ProposalPayload = V2ProposalPayload;
 

@@ -1,9 +1,10 @@
-import { getEmbeddedCompetition } from "@/data/olmanager/embedded";
+import { getEmbeddedCompetition, getEmbeddedSocialCatalog } from "@/data/olmanager/embedded";
 import { calculateLolOvr } from "@/data/olmanager/rating";
 import type { PlayerAttributes } from "@/data/olmanager/types";
 import type { DiffRecord, ProposalPayload } from "./types";
 
 const game = getEmbeddedCompetition();
+const socialCatalog = getEmbeddedSocialCatalog();
 
 export function buildProposalDiff(proposal: ProposalPayload): DiffRecord[] {
   switch (proposal.type) {
@@ -136,6 +137,91 @@ export function buildProposalDiff(proposal: ProposalPayload): DiffRecord[] {
           records.push(record(`changes.${key}`, team[key], proposal.changes[key]));
         }
       }
+      return records;
+    }
+    case "EditCompetition": {
+      if (proposal.competitionId !== game.manifest.id) {
+        return [record("competition", null, proposal.competitionId, "warning")];
+      }
+
+      const records: DiffRecord[] = [];
+      for (const key of ["name", "full_name", "logo", "tier", "active"] as const) {
+        if (key in proposal.changes && game.manifest[key] !== proposal.changes[key]) {
+          records.push(record(`changes.${key}`, game.manifest[key], proposal.changes[key]));
+        }
+      }
+      return records;
+    }
+    case "AddSocialAccount":
+      return [
+        record("account.language", null, proposal.account.language),
+        record("account.display_name", null, proposal.account.display_name),
+        record("account.handle", null, proposal.account.handle),
+        record("account.author_type", null, proposal.account.author_type),
+        record("account.profile_image_url", null, proposal.account.profile_image_url),
+        record("account.favorite_team_ids", null, proposal.account.favorite_team_ids.join(", ")),
+        record("account.active", null, proposal.account.active),
+      ];
+    case "EditSocialTemplate": {
+      const template = socialCatalog.templates.find(
+        (candidate) => candidate.id === proposal.templateId,
+      );
+      if (!template) {
+        return [record("socialTemplate", null, proposal.templateId, "warning")];
+      }
+
+      const records: DiffRecord[] = [];
+      for (const key of ["weight", "active", "conditions_json"] as const) {
+        if (key in proposal.changes && template[key] !== proposal.changes[key]) {
+          records.push(record(`changes.${key}`, template[key], proposal.changes[key]));
+        }
+      }
+      if (proposal.changes.variants) {
+        records.push(
+          record(
+            "changes.variants",
+            template.variants.join("\n"),
+            proposal.changes.variants.join("\n"),
+          ),
+        );
+      }
+      if (proposal.changes.tags) {
+        records.push(
+          record("changes.tags", template.tags.join(", "), proposal.changes.tags.join(", ")),
+        );
+      }
+      return records;
+    }
+    case "AddNewsTemplate": {
+      const records: DiffRecord[] = [
+        record("template.category", null, proposal.template.category),
+        record(
+          "template.headlines",
+          null,
+          proposal.template.headlines.map((headline) => headline.text).join("\n"),
+        ),
+        record(
+          "template.sources",
+          null,
+          proposal.template.sources.map((source) => source.text).join(", "),
+        ),
+      ];
+
+      if (proposal.template.body !== undefined) {
+        records.push(record("template.body", null, proposal.template.body));
+      }
+      if (proposal.template.body_variants !== undefined) {
+        records.push(
+          record(
+            "template.body_variants",
+            null,
+            proposal.template.body_variants
+              .map((variant) => `${variant.body_key}: ${variant.text}`)
+              .join("\n"),
+          ),
+        );
+      }
+
       return records;
     }
   }

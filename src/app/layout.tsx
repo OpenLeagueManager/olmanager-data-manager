@@ -17,7 +17,7 @@ const oswald = Oswald({
 
 export const metadata: Metadata = {
   title: "OLManager Data Manager",
-  description: "Typed fixture-backed proposal review for OLManager data changes.",
+  description: "Typed canonical-data-backed proposal review for OLManager data changes.",
 };
 
 export default function RootLayout({

@@ -8,7 +8,7 @@ import {
 } from "@/data/embedded-check";
 import { embeddedLecCompetition } from "@/data/olmanager/embedded";
 import type { CompetitionData } from "@/data/olmanager/types";
-import { loadCompetition, loadCompetitions } from "./loader";
+import { loadCompetition, loadCompetitions, loadMessageCatalog, loadNewsTemplates, loadSocialCatalog } from "./loader";
 
 describe("canonical data loaders", () => {
   it("loads LEC as typed competition data", async () => {
@@ -64,6 +64,40 @@ describe("embedded data sync guard", () => {
 
     expect(() => assertEmbeddedMatches(loaded, embeddedLecCompetition)).toThrow(
       EmbeddedDataDriftError,
+    );
+  });
+});
+
+describe("content catalog loaders", () => {
+  it("loads the social catalog with deterministic order", async () => {
+    const catalog = await loadSocialCatalog();
+
+    expect(catalog.accounts.length).toBeGreaterThan(0);
+    expect(catalog.templates.length).toBeGreaterThan(0);
+    expect(catalog.accounts.map((account) => account.id)).toEqual(
+      [...catalog.accounts.map((account) => account.id)].sort((a, b) => a.localeCompare(b)),
+    );
+    expect(catalog.templates.map((template) => template.id)).toEqual(
+      [...catalog.templates.map((template) => template.id)].sort((a, b) => a.localeCompare(b)),
+    );
+  });
+
+  it("loads news templates from data/news recursively", async () => {
+    const templates = await loadNewsTemplates();
+
+    expect(templates.some((template) => template.id === "title_race")).toBe(true);
+    expect(templates.some((template) => template.id === "season_preview")).toBe(true);
+    expect(templates.map((template) => template.id)).toEqual(
+      [...templates.map((template) => template.id)].sort((a, b) => a.localeCompare(b)),
+    );
+  });
+
+  it("loads the message sender catalog", async () => {
+    const catalog = await loadMessageCatalog();
+
+    expect(catalog.senders.some((sender) => sender.id === "al_lio")).toBe(true);
+    expect(catalog.senders.map((sender) => sender.id)).toEqual(
+      [...catalog.senders.map((sender) => sender.id)].sort((a, b) => a.localeCompare(b)),
     );
   });
 });

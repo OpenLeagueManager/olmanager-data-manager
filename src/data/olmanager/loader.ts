@@ -7,7 +7,10 @@ import { join } from "node:path";
 import type {
   CompetitionData,
   CompetitionManifest,
+  MessageCatalog,
+  NewsTemplate,
   Player,
+  SocialCatalog,
   Staff,
   Team,
 } from "./types";
@@ -62,5 +65,53 @@ async function readStaffFile(
   }
 }
 
+export async function loadSocialCatalog(): Promise<SocialCatalog> {
+  const accounts = await readJson<import("./types").SocialAccountData[]>("social/accounts.json");
+  const templatesFile = await readJson<{ templates: import("./types").SocialTemplateData[] }>(
+    "social/templates.json",
+  );
+  const matchTextsMap = await readJson<Record<string, Record<string, string[]>>>(
+    "social/match_texts.json",
+  );
 
+  return {
+    accounts: accounts.sort((a, b) => a.id.localeCompare(b.id)),
+    templates: templatesFile.templates.sort((a, b) => a.id.localeCompare(b.id)),
+    matchTexts: Object.entries(matchTextsMap).map(([key, texts]) => ({ key, texts })),
+  };
+}
+
+export async function loadNewsTemplates(): Promise<NewsTemplate[]> {
+  const files = await collectJsonFiles("news");
+  const templates = await Promise.all(files.map((file) => readJson<NewsTemplate>(file)));
+
+  return templates.sort((a, b) => a.id.localeCompare(b.id));
+}
+
+export async function loadMessageCatalog(): Promise<MessageCatalog> {
+  const files = await collectJsonFiles("messages/senders");
+  const senders = await Promise.all(
+    files.map((file) => readJson<import("./types").MessageSender>(file)),
+  );
+
+  return {
+    senders: senders.sort((a, b) => a.id.localeCompare(b.id)),
+  };
+}
+
+async function collectJsonFiles(relativeDir: string): Promise<string[]> {
+  const dir = join(DATA_ROOT, relativeDir);
+  const entries = await readdir(dir, { withFileTypes: true });
+  const files: string[] = [];
+
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      files.push(...(await collectJsonFiles(join(relativeDir, entry.name))));
+    } else if (entry.name.endsWith(".json")) {
+      files.push(join(relativeDir, entry.name));
+    }
+  }
+
+  return files;
+}
 

@@ -5,7 +5,7 @@ import { NewProposalRoute } from "@/features/proposals/proposal-routes";
 
 export const metadata: Metadata = {
   title: "New proposal | OLManager Data Manager",
-  description: "Create a typed, fixture-backed OLManager data proposal.",
+  description: "Create a typed, canonical-data-backed OLManager data proposal.",
 };
 
 export default async function NewProposalPage({

@@ -36,6 +36,26 @@ export const PROPOSAL_TYPE_METADATA = {
     description: "Propose changes to a team's budget, focus, or identity.",
     href: "/proposals/new/EditTeam",
   },
+  EditCompetition: {
+    label: "Edit competition",
+    description: "Propose changes to a competition's name, logo, tier, or active state.",
+    href: "/proposals/new/EditCompetition",
+  },
+  AddSocialAccount: {
+    label: "Add social account",
+    description: "Create a new social account for match-time posts and fan reactions.",
+    href: "/proposals/new/AddSocialAccount",
+  },
+  EditSocialTemplate: {
+    label: "Edit social template",
+    description: "Propose changes to a social post template's variants, tags, or weight.",
+    href: "/proposals/new/EditSocialTemplate",
+  },
+  AddNewsTemplate: {
+    label: "Add news template",
+    description: "Create a new storyline news template with headlines, body, and sources.",
+    href: "/proposals/new/AddNewsTemplate",
+  },
 } as const satisfies Record<
   ProposalType,
   { label: string; description: string; href: `/proposals/new/${ProposalType}` }

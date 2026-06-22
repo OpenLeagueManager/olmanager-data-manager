@@ -1,0 +1,49 @@
+[
+  {
+    "id": "title_race",
+    "category": "Editorial",
+    "headlines": [
+      {
+        "key": "be.news.storyline.titleRace.headline",
+        "text": "Top Spot Race Tightens — {leader} Lead {challenger} by {gap} Point(s)"
+      }
+    ],
+    "body": "{leader} remain in front, but {challenger} are only {gap} point(s) behind as the playoff race takes shape.",
+    "body_key": "be.news.storyline.titleRace.body",
+    "sources": [
+      {
+        "key": "be.source.leaguePulse",
+        "text": "The Shotcaller"
+      }
+    ],
+    "translations": {
+      "es": {
+        "headlines": [
+          {
+            "key": "be.news.storyline.titleRace.headline",
+            "text": "La cima se aprieta — {leader} lidera, {challenger} a {gap} punto(s)"
+          }
+        ],
+        "body": "{leader} sigue al frente, pero {challenger} está a solo {gap} punto(s) en la lucha por los playoffs."
+      }
+    }
+  },
+  {
+    "id": "unbeaten_streak",
+    "category": "Editorial",
+    "headlines": [
+      {
+        "key": "be.news.storyline.unbeatenStreak.headline",
+        "text": "{team} Extend Series Run to {runLength}"
+      }
+    ],
+    "body": "{team} have gone {runLength} series without a loss and are building real momentum around drafts and objectives.",
+    "body_key": "be.news.storyline.unbeatenStreak.body",
+    "sources": [
+      {
+        "key": "be.source.leaguePulse",
+        "text": "The Shotcaller"
+      }
+    ]
+  }
+]
