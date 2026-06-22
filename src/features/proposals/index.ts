@@ -5,6 +5,7 @@ export {
   NON_PRODUCTION_SESSION_STORE_NOTICE,
   ProposalSessionStoreProvider,
   useProposalSessionStore,
+  useProposalSessionStoreNotice,
   useProposalSessionStoreReady,
   type SessionProposal,
 } from "./session-proposal-store";

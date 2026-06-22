@@ -1,51 +1,118 @@
+import type {
+  NewPlayerInput,
+  NewStaffInput,
+  Player,
+  PlayerAttributes,
+  Staff,
+  StaffAttributes,
+  Team,
+} from "@/data/olmanager/types";
+
 export type ProposalId = `proposal-${string}`;
 export type PlayerId = string;
 export type TeamId = string;
 export type CompetitionId = string;
+export type StaffId = string;
 
 export type ProposalType =
   | "AddPlayer"
-  | "EditPlayerAttributes"
-  | "TransferPlayer";
-
-export type PlayerPosition = "GK" | "DF" | "MF" | "FW";
+  | "EditPlayer"
+  | "TransferPlayer"
+  | "AddStaff"
+  | "EditStaff"
+  | "ReleaseStaff"
+  | "EditTeam";
 
 export type AddPlayerPayload = {
+  version: 2;
   type: "AddPlayer";
-  player: {
-    id: PlayerId;
-    name: string;
-    position: PlayerPosition;
-    teamId: TeamId;
-    competitionId: CompetitionId;
-    overall: number;
+  player: NewPlayerInput;
+};
+
+export type EditPlayerPayload = {
+  version: 2;
+  type: "EditPlayer";
+  playerId: PlayerId;
+  changes: Partial<
+    Pick<
+      Player,
+      | "full_name"
+      | "match_name"
+      | "position"
+      | "nationality"
+      | "wage"
+      | "market_value"
+      | "contract_end"
+      | "transfer_listed"
+      | "loan_listed"
+    >
+  > & {
+    attributes?: Partial<PlayerAttributes>;
   };
 };
 
-export type EditablePlayerAttributes = {
-  name?: string;
-  position?: PlayerPosition;
-  overall?: number;
-};
-
-export type EditPlayerAttributesPayload = {
-  type: "EditPlayerAttributes";
-  playerId: PlayerId;
-  attributes: EditablePlayerAttributes;
-};
-
 export type TransferPlayerPayload = {
+  version: 2;
   type: "TransferPlayer";
   playerId: PlayerId;
   fromTeamId: TeamId;
   toTeamId: TeamId;
   competitionId: CompetitionId;
+  wageOffered: number;
+  fee: number;
+  contractEnd: string;
 };
 
-export type ProposalPayload =
+export type AddStaffPayload = {
+  version: 2;
+  type: "AddStaff";
+  staff: NewStaffInput;
+};
+
+export type EditStaffPayload = {
+  version: 2;
+  type: "EditStaff";
+  staffId: StaffId;
+  changes: Partial<Pick<Staff, "role" | "wage" | "contract_end">> & {
+    attributes?: Partial<StaffAttributes>;
+  };
+};
+
+export type ReleaseStaffPayload = {
+  version: 2;
+  type: "ReleaseStaff";
+  staffId: StaffId;
+  reason: "fired" | "resigned" | "contract_end" | "mutual";
+  severance?: number;
+};
+
+export type EditTeamPayload = {
+  version: 2;
+  type: "EditTeam";
+  teamId: TeamId;
+  changes: Partial<
+    Pick<
+      Team,
+      | "name"
+      | "short_name"
+      | "wage_budget"
+      | "transfer_budget"
+      | "training_focus"
+      | "training_intensity"
+    >
+  >;
+};
+
+export type V2ProposalPayload =
   | AddPlayerPayload
-  | EditPlayerAttributesPayload
-  | TransferPlayerPayload;
+  | EditPlayerPayload
+  | TransferPlayerPayload
+  | AddStaffPayload
+  | EditStaffPayload
+  | ReleaseStaffPayload
+  | EditTeamPayload;
+
+export type ProposalPayload = V2ProposalPayload;
 
 export type FieldError = {
   field: string;

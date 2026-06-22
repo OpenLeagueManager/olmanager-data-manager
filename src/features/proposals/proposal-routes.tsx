@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import { PROPOSAL_TYPE_METADATA } from "@/domain/proposals/metadata";
 import type { ProposalId, ProposalReview, ProposalType } from "@/domain/proposals/types";
 import {
@@ -12,6 +13,7 @@ import {
   ProposalSessionStoreProvider,
   ReviewControls,
   useProposalSessionStore,
+  useProposalSessionStoreNotice,
   useProposalSessionStoreReady,
 } from "@/features/proposals";
 import styles from "./proposal-ui.module.css";
@@ -44,15 +46,28 @@ export function ProposalDetailRoute({ proposalId }: { proposalId: ProposalId }) 
 
 function ProposalsWorkbench() {
   const { clearSessionProposals, proposals } = useProposalSessionStore();
+  const { notice, dismiss } = useProposalSessionStoreNotice();
 
   return (
     <div className={styles.page}>
+      {notice ? (
+        <div className={styles.notice} role="alert">
+          <p>{notice}</p>
+          <Button onClick={dismiss} size="sm" variant="secondary">
+            Dismiss
+          </Button>
+        </div>
+      ) : null}
+
       <section className={styles.heroPanel} aria-labelledby="proposals-title">
         <p className={styles.eyebrow}>Typed proposal workbench</p>
-        <h1 className={styles.title} id="proposals-title">Review OLManager data changes before anything ships.</h1>
+        <h1 className={styles.title} id="proposals-title">
+          Review OLManager data changes before anything ships.
+        </h1>
         <p className={styles.lede}>
-          Contributors create typed proposals from fixture data. Reviewers inspect deterministic
-          diffs and record stub approval or rejection decisions in this browser session only.
+          Contributors create typed proposals from canonical LoL data. Reviewers inspect
+          deterministic diffs and record stub approval or rejection decisions in this browser
+          session only.
         </p>
         <MvpExclusions />
       </section>
@@ -60,7 +75,9 @@ function ProposalsWorkbench() {
       <section className={styles.contentPanel} aria-labelledby="create-title">
         <div className={styles.sectionHeading}>
           <p className={styles.eyebrow}>Create</p>
-          <h2 className={styles.sectionTitle} id="create-title">Choose a supported proposal type</h2>
+          <h2 className={styles.sectionTitle} id="create-title">
+            Choose a supported proposal type
+          </h2>
         </div>
         <div className={styles.choiceGrid}>
           {proposalTypeLinks.map((proposalType) => (
@@ -76,12 +93,14 @@ function ProposalsWorkbench() {
         <div className={`${styles.sectionHeading} ${styles.withActions}`}>
           <div>
             <p className={styles.eyebrow}>Session review queue</p>
-            <h2 className={styles.sectionTitle} id="session-proposals-title">Current proposals</h2>
+            <h2 className={styles.sectionTitle} id="session-proposals-title">
+              Current proposals
+            </h2>
           </div>
           {proposals.length > 0 ? (
-            <button className={styles.button} onClick={clearSessionProposals} type="button">
+            <Button onClick={clearSessionProposals} type="button" variant="secondary">
               Clear session proposals
-            </button>
+            </Button>
           ) : null}
         </div>
         <ProposalList proposals={proposals} />
@@ -102,7 +121,9 @@ function NewProposalWorkbench({ proposalType }: { proposalType: ProposalType }) 
         </Link>
         <div className={styles.sectionHeading}>
           <p className={styles.eyebrow}>New proposal</p>
-          <h1 className={styles.title} id="new-proposal-title">Create a validated draft</h1>
+          <h1 className={styles.title} id="new-proposal-title">
+            Create a validated draft
+          </h1>
           <p className={`${styles.lede} ${styles.compactLede}`}>
             The form uses native constraints for guidance, then validates through the typed domain
             rules before creating a reviewable draft.
@@ -132,8 +153,12 @@ function ProposalDetailWorkbench({ proposalId }: { proposalId: ProposalId }) {
           <Link className={styles.textLink} href="/proposals">
             Back to proposal queue
           </Link>
-          <h1 className={styles.title} id="loading-proposal-title">Loading session proposal</h1>
-          <p className={`${styles.lede} ${styles.compactLede}`}>Checking this browser session for stored proposal state.</p>
+          <h1 className={styles.title} id="loading-proposal-title">
+            Loading session proposal
+          </h1>
+          <p className={`${styles.lede} ${styles.compactLede}`}>
+            Checking this browser session for stored proposal state.
+          </p>
         </section>
       </div>
     );
@@ -146,10 +171,12 @@ function ProposalDetailWorkbench({ proposalId }: { proposalId: ProposalId }) {
           <Link className={styles.textLink} href="/proposals">
             Back to proposal queue
           </Link>
-          <h1 className={styles.title} id="missing-proposal-title">Proposal not found in this session</h1>
+          <h1 className={styles.title} id="missing-proposal-title">
+            Proposal not found in this session
+          </h1>
           <p className={`${styles.lede} ${styles.compactLede}`}>
             {NON_PRODUCTION_SESSION_STORE_NOTICE} Open the queue in the same browser session, or
-            create a new fixture-backed proposal.
+            create a new data-backed proposal.
           </p>
         </section>
       </div>
@@ -186,13 +213,9 @@ function ProposalDetailWorkbench({ proposalId }: { proposalId: ProposalId }) {
             branches, commits, pull requests, production records, assets, or ZIP files.
           </p>
           <div className={styles.buttonRow}>
-            <button
-              className={`${styles.button} ${styles.primaryButton}`}
-              onClick={() => submitDraft(proposal.id)}
-              type="button"
-            >
+            <Button onClick={() => submitDraft(proposal.id)} type="button">
               Submit draft for review
-            </button>
+            </Button>
           </div>
         </section>
       ) : null}

@@ -3,18 +3,38 @@ import type { ProposalType } from "./types";
 export const PROPOSAL_TYPE_METADATA = {
   AddPlayer: {
     label: "Add player",
-    description: "Create a new fixture-backed player record for review.",
+    description: "Create a new LoL player record for review.",
     href: "/proposals/new/AddPlayer",
   },
-  EditPlayerAttributes: {
-    label: "Edit player attributes",
-    description: "Propose a name, position, or rating change for an existing player.",
-    href: "/proposals/new/EditPlayerAttributes",
+  EditPlayer: {
+    label: "Edit player",
+    description: "Propose changes to an existing player's profile or attributes.",
+    href: "/proposals/new/EditPlayer",
   },
   TransferPlayer: {
     label: "Transfer player",
-    description: "Move an existing player between fixture teams with validation.",
+    description: "Move an existing player between LoL teams with validation.",
     href: "/proposals/new/TransferPlayer",
+  },
+  AddStaff: {
+    label: "Add staff",
+    description: "Create a new staff member record for review.",
+    href: "/proposals/new/AddStaff",
+  },
+  EditStaff: {
+    label: "Edit staff",
+    description: "Propose changes to an existing staff member.",
+    href: "/proposals/new/EditStaff",
+  },
+  ReleaseStaff: {
+    label: "Release staff",
+    description: "Record a staff release with reason and severance.",
+    href: "/proposals/new/ReleaseStaff",
+  },
+  EditTeam: {
+    label: "Edit team",
+    description: "Propose changes to a team's budget, focus, or identity.",
+    href: "/proposals/new/EditTeam",
   },
 } as const satisfies Record<
   ProposalType,
