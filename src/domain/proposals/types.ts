@@ -12,7 +12,7 @@ import type {
   Staff,
   StaffAttributes,
   Team,
-} from "@/data/olmanager/types";
+} from "@/lib/olmanager/types";
 
 export type ProposalId = `proposal-${string}`;
 export type PlayerId = string;
@@ -24,11 +24,14 @@ export type ProposalType =
   | "AddPlayer"
   | "EditPlayer"
   | "TransferPlayer"
+  | "ReleasePlayer"
   | "AddStaff"
   | "EditStaff"
   | "ReleaseStaff"
   | "EditTeam"
+  | "RemoveTeam"
   | "EditCompetition"
+  | "RemoveCompetition"
   | "AddSocialAccount"
   | "EditSocialTemplate"
   | "AddNewsTemplate";
@@ -96,6 +99,28 @@ export type ReleaseStaffPayload = {
   severance?: number;
 };
 
+export type ReleasePlayerPayload = {
+  version: 2;
+  type: "ReleasePlayer";
+  playerId: PlayerId;
+  reason: "fired" | "resigned" | "contract_end" | "mutual";
+  severance?: number;
+};
+
+export type RemoveTeamPayload = {
+  version: 2;
+  type: "RemoveTeam";
+  teamId: TeamId;
+  reason: string;
+};
+
+export type RemoveCompetitionPayload = {
+  version: 2;
+  type: "RemoveCompetition";
+  competitionId: CompetitionId;
+  reason: string;
+};
+
 export type EditTeamPayload = {
   version: 2;
   type: "EditTeam";
@@ -143,11 +168,14 @@ export type V2ProposalPayload =
   | AddPlayerPayload
   | EditPlayerPayload
   | TransferPlayerPayload
+  | ReleasePlayerPayload
   | AddStaffPayload
   | EditStaffPayload
   | ReleaseStaffPayload
   | EditTeamPayload
+  | RemoveTeamPayload
   | EditCompetitionPayload
+  | RemoveCompetitionPayload
   | AddSocialAccountPayload
   | EditSocialTemplatePayload
   | AddNewsTemplatePayload;

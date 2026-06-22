@@ -10,7 +10,6 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import { buildProposalDiff } from "@/domain/proposals/diff";
 import { transitionReviewState, type ReviewAction } from "@/domain/proposals/review-state";
 import type {
   DiffRecord,
@@ -20,7 +19,7 @@ import type {
   ReviewerMetadata,
   ValidationResult,
 } from "@/domain/proposals/types";
-import { validateProposal } from "@/domain/proposals/validation";
+import { useGameData } from "@/lib/data/game-data-context";
 
 export const NON_PRODUCTION_SESSION_STORE_NOTICE =
   "Non-production session adapter: proposals stay in this browser tab session and are never persisted to production storage.";
@@ -66,6 +65,7 @@ type ProposalSessionStore = {
 const ProposalSessionStoreContext = createContext<ProposalSessionStore | null>(null);
 
 export function ProposalSessionStoreProvider({ children }: { children: ReactNode }) {
+  const { validateProposal, buildProposalDiff } = useGameData();
   const snapshot = useSyncExternalStore(
     subscribeSessionProposals,
     readBrowserSessionSnapshot,
@@ -73,8 +73,8 @@ export function ProposalSessionStoreProvider({ children }: { children: ReactNode
   );
   const isReady = snapshot !== null;
   const { proposals, discardedNotice: hydrateNotice } = useMemo(
-    () => readSessionProposalsFromSnapshot(snapshot),
-    [snapshot],
+    () => readSessionProposalsFromSnapshot(snapshot, validateProposal, buildProposalDiff),
+    [snapshot, validateProposal, buildProposalDiff],
   );
 
   const [legacyNotice, setLegacyNotice] = useState<string | null>(() => {
@@ -115,7 +115,7 @@ export function ProposalSessionStoreProvider({ children }: { children: ReactNode
 
     writeSessionProposals([proposal, ...readCurrentProposals()]);
     return proposal;
-  }, []);
+  }, [buildProposalDiff]);
 
   const replaceProposal = useCallback((updated: SessionProposal) => {
     writeSessionProposals(
@@ -237,14 +237,10 @@ export function useProposalSessionStoreNotice() {
   };
 }
 
-function readCurrentProposals(): SessionProposal[] {
-  const snapshot =
-    typeof window === "undefined" ? null : window.sessionStorage.getItem(SESSION_PROPOSALS_STORAGE_KEY);
-  return readSessionProposalsFromSnapshot(snapshot).proposals;
-}
-
 function readSessionProposalsFromSnapshot(
   rawValue: string | null,
+  validateFn?: (input: unknown) => ValidationResult<ProposalPayload>,
+  buildDiffFn?: (payload: ProposalPayload) => DiffRecord[],
 ): { proposals: SessionProposal[]; discardedNotice: string | null } {
   if (!rawValue) {
     return { proposals: [], discardedNotice: null };
@@ -258,7 +254,7 @@ function readSessionProposalsFromSnapshot(
 
     let discardedNotice: string | null = null;
     const proposals = parsed.flatMap((candidate) => {
-      const result = normalizeSessionProposal(candidate);
+      const result = normalizeSessionProposal(candidate, validateFn, buildDiffFn);
       if (!result.ok) {
         discardedNotice = V1_DISCARD_MESSAGE;
         return [];
@@ -268,8 +264,17 @@ function readSessionProposalsFromSnapshot(
 
     return { proposals, discardedNotice };
   } catch {
-    return { proposals: [], discardedNotice: V1_DISCARD_MESSAGE };
+    return { proposals: [], discardedNotice: null };
   }
+}
+
+function readCurrentProposals(
+  validateFn?: (input: unknown) => ValidationResult<ProposalPayload>,
+  buildDiffFn?: (payload: ProposalPayload) => DiffRecord[],
+): SessionProposal[] {
+  const snapshot =
+    typeof window === "undefined" ? null : window.sessionStorage.getItem(SESSION_PROPOSALS_STORAGE_KEY);
+  return readSessionProposalsFromSnapshot(snapshot, validateFn, buildDiffFn).proposals;
 }
 
 function subscribeSessionProposals(onStoreChange: () => void) {
@@ -307,13 +312,17 @@ function writeSessionProposals(proposals: SessionProposal[]) {
   window.dispatchEvent(new Event(SESSION_PROPOSALS_CHANGED_EVENT));
 }
 
-function normalizeSessionProposal(candidate: unknown): ValidationResult<SessionProposal> {
+function normalizeSessionProposal(
+  candidate: unknown,
+  validateFn?: (input: unknown) => ValidationResult<ProposalPayload>,
+  buildDiffFn?: (payload: ProposalPayload) => DiffRecord[],
+): ValidationResult<SessionProposal> {
   if (!isRecord(candidate)) {
     return fieldFailure("proposal", "Stored proposal must be an object.");
   }
 
   const id = readProposalId(candidate.id);
-  const payload = validateProposal(candidate.payload);
+  const payload = validateFn ? validateFn(candidate.payload) : structuralProposalPayloadCheck(candidate.payload);
   const review = normalizeReview(candidate.review);
   const createdAt = readIsoDate(candidate.createdAt);
   const updatedAt = readIsoDate(candidate.updatedAt);
@@ -328,11 +337,23 @@ function normalizeSessionProposal(candidate: unknown): ValidationResult<SessionP
       id,
       payload: payload.value,
       review: review.value,
-      diff: buildProposalDiff(payload.value),
+      diff: buildDiffFn ? buildDiffFn(payload.value) : [],
       createdAt,
       updatedAt,
     },
   };
+}
+
+function structuralProposalPayloadCheck(
+  input: unknown,
+): ValidationResult<ProposalPayload> {
+  if (!isRecord(input)) {
+    return fieldFailure("payload", "Payload must be an object.");
+  }
+  if (typeof input.type !== "string") {
+    return fieldFailure("payload", "Payload must have a type field.");
+  }
+  return { ok: true, value: input as unknown as ProposalPayload };
 }
 
 function normalizeReview(candidate: unknown): ValidationResult<ProposalReview> {

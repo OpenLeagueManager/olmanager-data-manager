@@ -15,7 +15,7 @@
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 1.5rem;
-  box-shadow: 0 24px 80px rgb(16 42 67 / 0.08);
+  box-shadow: 0 24px 80px color-mix(in srgb, var(--foreground) 8%, transparent);
   display: grid;
   gap: 1.25rem;
   padding: clamp(1.25rem, 4vw, 3rem);
@@ -23,8 +23,8 @@
 
 .heroPanel {
   background:
-    radial-gradient(circle at top right, rgb(245 158 11 / 0.2), transparent 18rem),
-    linear-gradient(135deg, #ffffff 0%, #eef5ff 100%);
+    radial-gradient(circle at top right, color-mix(in srgb, var(--primary) 20%, transparent), transparent 18rem),
+    linear-gradient(135deg, var(--background) 0%, color-mix(in srgb, var(--primary) 8%, var(--background)) 100%);
 }
 
 .eyebrow {
@@ -52,7 +52,7 @@
 }
 
 .lede {
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: clamp(1.05rem, 2vw, 1.3rem);
   line-height: 1.7;
   max-width: 54rem;
@@ -95,7 +95,7 @@
 }
 
 .choiceDescription {
-  color: var(--muted);
+  color: var(--muted-foreground);
   line-height: 1.6;
 }
 
@@ -113,10 +113,10 @@
 }
 
 .mvpBoundary {
-  background: #fff7ed;
+  background: var(--warning);
   border: 1px solid var(--line);
   border-radius: 1rem;
-  color: #9a3412;
+  color: var(--warning-foreground);
   line-height: 1.6;
   padding: 1rem;
 }
@@ -144,26 +144,28 @@
 }
 
 .hint {
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 0.875rem;
 }
 
 .control {
-  border: 1px solid #9aa4b2;
+  border: 1px solid var(--border);
   border-radius: 0.5rem;
+  box-sizing: border-box;
   font: inherit;
   padding: 0.625rem 0.75rem;
+  width: 100%;
 }
 
 .control:user-invalid,
 .control[data-user-invalid="true"] {
-  background: #fff5f5;
-  border-color: #b42318;
-  outline-color: #b42318;
+  background: color-mix(in srgb, var(--destructive) 10%, var(--background));
+  border-color: var(--destructive);
+  outline-color: var(--destructive);
 }
 
 .fieldError {
-  color: #b42318;
+  color: var(--destructive);
   display: none;
   font-size: 0.875rem;
 }
@@ -192,31 +194,31 @@
 .button:focus-visible,
 .inlineLink:focus-visible,
 .control:focus-visible {
-  outline: 3px solid #f59e0b;
+  outline: 3px solid var(--ring);
   outline-offset: 3px;
 }
 
 .primaryButton {
   background: var(--accent);
-  color: white;
+  color: var(--primary-foreground);
 }
 
 .secondaryButton {
-  background: white;
+  background: var(--background);
   color: var(--accent);
 }
 
 .dangerButton {
-  background: #b42318;
-  border-color: #b42318;
-  color: white;
+  background: var(--destructive);
+  border-color: var(--destructive);
+  color: var(--destructive-foreground);
 }
 
 .notice {
-  background: #fff7ed;
-  border: 1px solid #fed7aa;
+  background: var(--warning);
+  border: 1px solid color-mix(in srgb, var(--warning) 30%, var(--background));
   border-radius: 0.75rem;
-  color: #9a3412;
+  color: var(--warning-foreground);
   padding: 0.75rem;
 }
 
@@ -229,7 +231,7 @@
 }
 
 .metadata {
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 0.875rem;
 }
 
@@ -243,23 +245,23 @@
 }
 
 .statusDraft {
-  background: #eef2ff;
-  color: #3730a3;
+  background: var(--secondary);
+  color: var(--secondary-foreground);
 }
 
 .statusSubmitted {
-  background: #eff6ff;
-  color: var(--accent);
+  background: var(--secondary);
+  color: var(--secondary-foreground);
 }
 
 .statusApproved {
-  background: #ecfdf3;
-  color: #027a48;
+  background: var(--success);
+  color: var(--success-foreground);
 }
 
 .statusRejected {
-  background: #fef3f2;
-  color: #b42318;
+  background: var(--destructive);
+  color: var(--destructive-foreground);
 }
 
 .diffList {
@@ -271,12 +273,12 @@
 }
 
 .diffItem {
-  border-left: 4px solid #93c5fd;
+  border-left: 4px solid var(--border);
   padding-left: 0.75rem;
 }
 
 .diffWarning {
-  border-left-color: #f59e0b;
+  border-left-color: var(--warning);
 }
 
 .inlineLink {

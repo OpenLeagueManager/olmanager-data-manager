@@ -9,14 +9,14 @@ export function FixtureIdRail({ fixtureId, className }: FixtureIdRailProps) {
   return (
     <div
       className={cn(
-        "rounded-md bg-zinc-100 px-2 py-1.5 dark:bg-zinc-900",
+        "rounded-md bg-muted px-2 py-1.5",
         className,
       )}
     >
-      <p className="text-[11px] font-mono uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+      <p className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground">
         Fixture ID
       </p>
-      <p className="text-[11px] font-mono uppercase tracking-widest text-zinc-900 dark:text-zinc-100">
+      <p className="text-[11px] font-mono uppercase tracking-widest text-foreground">
         {fixtureId}
       </p>
     </div>

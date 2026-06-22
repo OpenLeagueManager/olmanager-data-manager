@@ -1,9 +1,37 @@
 import { describe, expect, it } from "vitest";
-import { calculateLolOvr } from "@/data/olmanager/rating";
+import { calculateLolOvr } from "@/lib/olmanager/rating";
 import { buildProposalDiff } from "./diff";
 import { transitionReviewState } from "./review-state";
 import type { ProposalPayload, ReviewerMetadata } from "./types";
-import { parseProposalType, validateProposal } from "./validation";
+import { createValidator, parseProposalType } from "./validation";
+import type {
+  CompetitionManifest,
+  Player,
+  SocialAccountData,
+  SocialTemplateData,
+  Staff,
+  Team,
+} from "@/lib/olmanager/types";
+import lecManifest from "@/data/competitions/lec/manifest.json";
+import lecPlayers from "@/data/players/lec_players.json";
+import lecStaffs from "@/data/staffs/lec_staffs.json";
+import lecTeams from "@/data/teams/lec_teams.json";
+import socialTemplates from "@/data/social/templates.json";
+
+const game = {
+  manifests: [lecManifest as CompetitionManifest],
+  teams: lecTeams.teams as Team[],
+  players: lecPlayers.players as Player[],
+  staff: lecStaffs.staff as Staff[],
+};
+
+const social = {
+  accounts: [] satisfies SocialAccountData[],
+  templates: socialTemplates.templates as SocialTemplateData[],
+};
+
+const { validateProposal } = createValidator(game, social);
+const buildDiff = (proposal: ProposalPayload) => buildProposalDiff(proposal, game, social);
 
 const reviewer: ReviewerMetadata = {
   reviewerId: "reviewer-1",
@@ -64,7 +92,7 @@ describe("proposal validation", () => {
         {
           field: "type",
           message:
-            "Unsupported proposal type. Supported types: AddPlayer, EditPlayer, TransferPlayer, AddStaff, EditStaff, ReleaseStaff, EditTeam, EditCompetition, AddSocialAccount, EditSocialTemplate, AddNewsTemplate.",
+            "Unsupported proposal type. Supported types: AddPlayer, EditPlayer, TransferPlayer, ReleasePlayer, AddStaff, EditStaff, ReleaseStaff, EditTeam, RemoveTeam, EditCompetition, RemoveCompetition, AddSocialAccount, EditSocialTemplate, AddNewsTemplate.",
         },
       ],
     });
@@ -453,7 +481,7 @@ describe("proposal diffs", () => {
       },
     };
 
-    const diff = buildProposalDiff(proposal);
+    const diff = buildDiff(proposal);
 
     expect(diff).toContainEqual({
       field: "changes.match_name",
@@ -483,7 +511,7 @@ describe("proposal diffs", () => {
       contractEnd: "2027-11-16",
     };
 
-    expect(buildProposalDiff(proposal)).toContainEqual({
+    expect(buildDiff(proposal)).toContainEqual({
       field: "player.team",
       before: "G2 Esports",
       after: "Fnatic",
@@ -504,7 +532,7 @@ describe("proposal diffs", () => {
       changes: { name: "LEC 2026" },
     };
 
-    expect(buildProposalDiff(proposal)).toContainEqual({
+    expect(buildDiff(proposal)).toContainEqual({
       field: "changes.name",
       before: "LEC",
       after: "LEC 2026",
@@ -527,7 +555,7 @@ describe("proposal diffs", () => {
       },
     };
 
-    const diff = buildProposalDiff(proposal);
+    const diff = buildDiff(proposal);
     expect(diff).toContainEqual({
       field: "account.handle",
       before: null,
@@ -544,7 +572,7 @@ describe("proposal diffs", () => {
       changes: { weight: 7, tags: ["match", "team"] },
     };
 
-    const diff = buildProposalDiff(proposal);
+    const diff = buildDiff(proposal);
     expect(diff).toContainEqual({
       field: "changes.weight",
       before: 5,
@@ -565,7 +593,7 @@ describe("proposal diffs", () => {
       },
     };
 
-    const diff = buildProposalDiff(proposal);
+    const diff = buildDiff(proposal);
     expect(diff).toContainEqual({
       field: "template.category",
       before: null,
@@ -586,7 +614,7 @@ describe("proposal diffs", () => {
       },
     };
 
-    const diff = buildProposalDiff(proposal);
+    const diff = buildDiff(proposal);
     expect(diff).toContainEqual({
       field: "template.body_variants",
       before: null,

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Oswald } from "next/font/google";
+import { ThemeProvider } from "next-themes";
+import { AuthSessionProvider } from "@/components/layout/AuthSessionProvider";
 import "./globals.css";
 
 const inter = Inter({
@@ -29,8 +31,13 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${inter.variable} ${oswald.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
-      <body>{children}</body>
+      <body>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+          <AuthSessionProvider>{children}</AuthSessionProvider>
+        </ThemeProvider>
+      </body>
     </html>
   );
 }

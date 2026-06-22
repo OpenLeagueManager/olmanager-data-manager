@@ -27,7 +27,7 @@ export function Button({
         variant === "primary",
       "bg-secondary text-secondary-foreground hover:bg-secondary/80":
         variant === "secondary",
-      "bg-destructive text-white hover:bg-destructive/90": variant === "danger",
+      "bg-destructive text-destructive-foreground hover:bg-destructive/90": variant === "danger",
       "hover:bg-muted text-foreground": variant === "ghost",
     },
     {

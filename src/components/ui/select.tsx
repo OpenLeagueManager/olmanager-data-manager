@@ -30,8 +30,8 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             {placeholder}
           </option>
         ) : null}
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
+        {options.map((option, i) => (
+          <option key={`${option.value}-${i}`} value={option.value}>
             {option.label}
           </option>
         ))}

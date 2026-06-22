@@ -16,6 +16,11 @@ export const PROPOSAL_TYPE_METADATA = {
     description: "Move an existing player between LoL teams with validation.",
     href: "/proposals/new/TransferPlayer",
   },
+  ReleasePlayer: {
+    label: "Release player",
+    description: "Record a player release with reason and severance.",
+    href: "/proposals/new/ReleasePlayer",
+  },
   AddStaff: {
     label: "Add staff",
     description: "Create a new staff member record for review.",
@@ -36,10 +41,20 @@ export const PROPOSAL_TYPE_METADATA = {
     description: "Propose changes to a team's budget, focus, or identity.",
     href: "/proposals/new/EditTeam",
   },
+  RemoveTeam: {
+    label: "Remove team",
+    description: "Record a team removal with reason.",
+    href: "/proposals/new/RemoveTeam",
+  },
   EditCompetition: {
     label: "Edit competition",
     description: "Propose changes to a competition's name, logo, tier, or active state.",
     href: "/proposals/new/EditCompetition",
+  },
+  RemoveCompetition: {
+    label: "Remove competition",
+    description: "Record a competition removal with reason.",
+    href: "/proposals/new/RemoveCompetition",
   },
   AddSocialAccount: {
     label: "Add social account",
