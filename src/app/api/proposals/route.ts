@@ -1,7 +1,25 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { createProposalIssue } from "@/lib/github-app";
+import { createProposalIssue, listOpenProposals } from "@/lib/github-app";
 import type { ProposalPayload } from "@/domain/proposals/types";
+
+export async function GET() {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const proposals = await listOpenProposals({});
+    return NextResponse.json({ ok: true, proposals });
+  } catch (error) {
+    console.error("Failed to list proposals:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch proposals." },
+      { status: 500 },
+    );
+  }
+}
 
 export async function POST(request: Request) {
   const session = await auth();

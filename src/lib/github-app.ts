@@ -79,33 +79,30 @@ export async function createProposalIssue(params: {
 }
 
 /**
- * Create a Pull Request in the data repo with data changes.
+ * Commit file changes directly to the data repo's main branch.
  */
-export async function createDataPullRequest(params: {
-  title: string;
-  body: string;
-  branch: string;
+export async function commitToDataRepo(params: {
+  message: string;
   files: Array<{ path: string; content: string }>;
-}): Promise<{ prNumber: number; prUrl: string }> {
+}): Promise<{ commitSha: string }> {
   const octokit = await getInstallationOctokit();
   const [owner, repo] = DATA_REPO.split("/");
 
-  // Get the default branch SHA
+  // Get the current main branch SHA
   const { data: ref } = await octokit.git.getRef({
     owner,
     repo,
     ref: "heads/main",
   });
 
-  // Create a new branch
-  await octokit.git.createRef({
+  // Get the current tree
+  const { data: baseCommit } = await octokit.git.getCommit({
     owner,
     repo,
-    ref: `refs/heads/${params.branch}`,
-    sha: ref.object.sha,
+    commit_sha: ref.object.sha,
   });
 
-  // Create blobs and a tree
+  // Create blobs for each file
   const treeItems = await Promise.all(
     params.files.map(async (file) => {
       const { data: blob } = await octokit.git.createBlob({
@@ -123,10 +120,11 @@ export async function createDataPullRequest(params: {
     }),
   );
 
+  // Create a new tree
   const { data: tree } = await octokit.git.createTree({
     owner,
     repo,
-    base_tree: ref.object.sha,
+    base_tree: baseCommit.tree.sha,
     tree: treeItems,
   });
 
@@ -134,33 +132,61 @@ export async function createDataPullRequest(params: {
   const { data: commit } = await octokit.git.createCommit({
     owner,
     repo,
-    message: params.title,
+    message: params.message,
     tree: tree.sha,
     parents: [ref.object.sha],
   });
 
-  // Update the branch to point to the new commit
+  // Update main to point to the new commit
   await octokit.git.updateRef({
     owner,
     repo,
-    ref: `heads/${params.branch}`,
+    ref: "heads/main",
     sha: commit.sha,
   });
 
-  // Create the PR
-  const { data: pr } = await octokit.pulls.create({
+  return { commitSha: commit.sha };
+}
+
+/**
+ * List open proposal issues from the app repo.
+ */
+export async function listOpenProposals(params: {
+  labels?: string[];
+}): Promise<Array<{
+  number: number;
+  title: string;
+  body: string;
+  url: string;
+  author: string;
+  createdAt: string;
+  labels: string[];
+}>> {
+  const octokit = await getInstallationOctokit();
+  const [owner, repo] = APP_REPO.split("/");
+
+  const { data: issues } = await octokit.issues.listForRepo({
     owner,
     repo,
-    title: params.title,
-    body: params.body,
-    head: params.branch,
-    base: "main",
+    state: "open",
+    labels: params.labels?.join(",") ?? "proposal",
+    sort: "created",
+    direction: "desc",
+    per_page: 50,
   });
 
-  return {
-    prNumber: pr.number,
-    prUrl: pr.html_url,
-  };
+  // Filter out pull requests (GitHub API returns PRs in issues endpoint)
+  return issues
+    .filter((issue) => !issue.pull_request)
+    .map((issue) => ({
+      number: issue.number,
+      title: issue.title,
+      body: issue.body ?? "",
+      url: issue.html_url,
+      author: issue.user?.login ?? "unknown",
+      createdAt: issue.created_at,
+      labels: issue.labels.map((l) => (typeof l === "string" ? l : l.name ?? "")).filter(Boolean),
+    }));
 }
 
 /**

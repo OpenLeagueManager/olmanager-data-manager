@@ -1,6 +1,25 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { closeProposalIssue, createDataPullRequest } from "@/lib/github-app";
+import { closeProposalIssue, commitToDataRepo } from "@/lib/github-app";
+
+export async function GET() {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const { listOpenProposals } = await import("@/lib/github-app");
+    const proposals = await listOpenProposals({});
+    return NextResponse.json({ ok: true, proposals });
+  } catch (error) {
+    console.error("Failed to list proposals:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch proposals. Check GitHub App configuration." },
+      { status: 500 },
+    );
+  }
+}
 
 export async function POST(
   request: Request,
@@ -30,29 +49,25 @@ export async function POST(
 
   try {
     const reviewer = body.reviewer || session.user.name || session.user.id;
-
     const outcome = body.action === "approve" ? "approved" : "rejected";
+
     await closeProposalIssue(issueNumber, outcome, reviewer);
 
-    let prUrl: string | null = null;
+    let commitSha: string | null = null;
 
-    // If approved with data changes, create a PR in the data repo
+    // On approve with files, commit directly to the data repo
     if (body.action === "approve" && body.files?.length) {
-      const timestamp = Date.now();
-      const branch = `proposal/${issueNumber}-${timestamp}`;
-      const pr = await createDataPullRequest({
-        title: `Apply proposal #${issueNumber} (approved by ${reviewer})`,
-        body: `Changes approved by ${reviewer} from proposal #${issueNumber}.`,
-        branch,
+      const result = await commitToDataRepo({
+        message: `Apply proposal #${issueNumber} (approved by ${reviewer})`,
         files: body.files,
       });
-      prUrl = pr.prUrl;
+      commitSha = result.commitSha;
     }
 
     return NextResponse.json({
       ok: true,
       action: body.action,
-      prUrl,
+      commitSha,
     });
   } catch (error) {
     console.error("Failed to process review:", error);

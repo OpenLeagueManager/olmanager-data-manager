@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PROPOSAL_TYPE_METADATA } from "@/domain/proposals/metadata";
 import type { ProposalId, ProposalPayload, ProposalReview, ProposalType } from "@/domain/proposals/types";
@@ -49,6 +49,47 @@ export function ProposalDetailRoute({ proposalId }: { proposalId: ProposalId }) 
 function ProposalsWorkbench() {
   const { clearSessionProposals, proposals } = useProposalSessionStore();
   const { notice, dismiss } = useProposalSessionStoreNotice();
+  const { data: session } = useSession();
+  const [githubProposals, setGithubProposals] = useState<Array<{
+    number: number; title: string; body: string; url: string; author: string; createdAt: string; labels: string[];
+  }>>([]);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewStatus, setReviewStatus] = useState<Record<number, "loading" | "ok" | "error">>({});
+
+  const fetchProposals = useCallback(async () => {
+    if (!session?.user) return;
+    try {
+      const res = await fetch("/api/proposals");
+      if (res.ok) {
+        const data = await res.json();
+        setGithubProposals(data.proposals ?? []);
+      }
+    } catch { /* GitHub App not configured */ }
+  }, [session]);
+
+  useEffect(() => { fetchProposals(); }, [fetchProposals]);
+
+  async function handleReview(issueNumber: number, action: "approve" | "reject") {
+    setReviewLoading(true);
+    setReviewStatus((prev) => ({ ...prev, [issueNumber]: "loading" }));
+    try {
+      const res = await fetch(`/api/proposals/${issueNumber}/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          reviewer: session?.user?.name || "Maintainer",
+        }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      setReviewStatus((prev) => ({ ...prev, [issueNumber]: "ok" }));
+      setGithubProposals((prev) => prev.filter((p) => p.number !== issueNumber));
+    } catch {
+      setReviewStatus((prev) => ({ ...prev, [issueNumber]: "error" }));
+    } finally {
+      setReviewLoading(false);
+    }
+  }
 
   return (
     <div className={styles.page}>
@@ -73,6 +114,77 @@ function ProposalsWorkbench() {
         </p>
         <MvpExclusions />
       </section>
+
+      {githubProposals.length > 0 ? (
+        <section className={styles.contentPanel} aria-labelledby="review-queue-title">
+          <div className={`${styles.sectionHeading} ${styles.withActions}`}>
+            <div>
+              <p className={styles.eyebrow}>Review queue</p>
+              <h2 className={styles.sectionTitle} id="review-queue-title">
+                Open proposals ({githubProposals.length})
+              </h2>
+            </div>
+            <Button onClick={fetchProposals} size="sm" variant="secondary" disabled={reviewLoading}>
+              Refresh
+            </Button>
+          </div>
+          <div className={styles.stack}>
+            {githubProposals.map((gh) => (
+              <div key={gh.number} className={styles.card}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="grid gap-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <a
+                        className="font-medium hover:underline"
+                        href={gh.url}
+                        rel="noopener noreferrer"
+                        target="_blank"
+                      >
+                        #{gh.number}
+                      </a>
+                      {gh.labels.filter((l) => l !== "proposal").map((label) => (
+                        <span key={label} className="rounded-full bg-muted px-2 py-0.5 text-xs">
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+                    <p className="text-sm">{gh.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      by {gh.author} · {new Date(gh.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {reviewStatus[gh.number] === "ok" ? (
+                      <span className="text-sm text-muted-foreground">Done</span>
+                    ) : reviewStatus[gh.number] === "error" ? (
+                      <span className="text-sm text-destructive">Error</span>
+                    ) : (
+                      <>
+                        <Button
+                          disabled={reviewLoading}
+                          onClick={() => handleReview(gh.number, "approve")}
+                          size="sm"
+                          variant="primary"
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          disabled={reviewLoading}
+                          onClick={() => handleReview(gh.number, "reject")}
+                          size="sm"
+                          variant="secondary"
+                        >
+                          Reject
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className={styles.contentPanel} aria-labelledby="create-title">
         <div className={styles.sectionHeading}>
