@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { execSync } from "child_process";
 import { auth } from "@/lib/auth";
 import { closeProposalIssue, commitToDataRepo, getIssueBody } from "@/lib/github-app";
 import { isMaintainer } from "@/lib/permissions";
@@ -58,6 +59,18 @@ export async function POST(
           files,
         });
         commitSha = result.commitSha;
+
+        // Sync the local submodule so the data explorer reflects changes immediately
+        try {
+          execSync("git submodule update --remote src/data", {
+            cwd: process.cwd(),
+            stdio: "pipe",
+            timeout: 10_000,
+          });
+        } catch {
+          // Non-critical: data will sync on next request via React cache()
+          console.warn("Failed to sync submodule after commit");
+        }
       }
     }
 

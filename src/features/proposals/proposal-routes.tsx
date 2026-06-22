@@ -425,9 +425,9 @@ function ProposalDetailWorkbench({ proposalId }: { proposalId: ProposalId }) {
 
 function MvpExclusions() {
   return (
-    <aside className={styles.mvpBoundary} aria-label="MVP exclusions">
-      <strong>MVP boundary:</strong> no Discord OAuth or role sync, no GitHub writes, no
-      production persistence, no asset uploads, and no ZIP export generation.
+    <aside className={styles.mvpBoundary} aria-label="Current scope">
+      <strong>Production:</strong> Discord OAuth for identity, GitHub App for persistence.
+      Proposals become GitHub Issues. Approvals commit changes directly to the data repository.
     </aside>
   );
 }
