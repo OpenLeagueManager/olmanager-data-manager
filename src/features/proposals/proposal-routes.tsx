@@ -55,6 +55,7 @@ function ProposalsWorkbench() {
   }>>([]);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewStatus, setReviewStatus] = useState<Record<number, "loading" | "ok" | "error">>({});
+  const [expandedIssue, setExpandedIssue] = useState<number | null>(null);
 
   const fetchProposals = useCallback(async () => {
     if (!session?.user) return;
@@ -129,64 +130,65 @@ function ProposalsWorkbench() {
             </Button>
           </div>
           <div className={styles.stack}>
-            {githubProposals.map((gh) => (
-              <div key={gh.number} className={styles.card}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="grid gap-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <a
-                        className="font-medium hover:underline"
-                        href={gh.url}
-                        rel="noopener noreferrer"
-                        target="_blank"
-                      >
-                        #{gh.number}
-                      </a>
-                      {gh.labels.filter((l) => l !== "proposal").map((label) => (
-                        <span key={label} className="rounded-full bg-muted px-2 py-0.5 text-xs">
-                          {label}
-                        </span>
-                      ))}
+            {githubProposals.map((gh) => {
+              const isExpanded = expandedIssue === gh.number;
+              const proposalType = gh.labels.find((l) => l !== "proposal" && !["approved", "rejected"].includes(l)) ?? "Unknown";
+
+              return (
+                <div key={gh.number} className={styles.card}>
+                  <button
+                    className="w-full text-left"
+                    onClick={() => setExpandedIssue(isExpanded ? null : gh.number)}
+                    type="button"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="grid gap-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-sm font-medium">#{gh.number}</span>
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{proposalType}</span>
+                          {gh.labels.filter((l) => l !== "proposal" && l !== proposalType).map((label) => (
+                            <span key={label} className="rounded-full bg-muted px-2 py-0.5 text-xs">{label}</span>
+                          ))}
+                        </div>
+                        <p className="text-sm font-medium">{gh.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          by {gh.author} · {new Date(gh.createdAt).toLocaleDateString()}
+                          {isExpanded ? null : (
+                            <span className="ml-2 text-primary">Click to expand</span>
+                          )}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                        {reviewStatus[gh.number] === "ok" ? (
+                          <span className="text-sm text-muted-foreground">Done</span>
+                        ) : reviewStatus[gh.number] === "error" ? (
+                          <span className="text-sm text-destructive">Error</span>
+                        ) : session?.user?.isMaintainer ? (
+                          <>
+                            <Button disabled={reviewLoading} onClick={() => handleReview(gh.number, "approve")} size="sm" variant="primary">Approve</Button>
+                            <Button disabled={reviewLoading} onClick={() => handleReview(gh.number, "reject")} size="sm" variant="secondary">Reject</Button>
+                          </>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Awaiting review</span>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-sm">{gh.title}</p>
-                    <pre className="mt-2 max-h-48 overflow-y-auto rounded-md bg-muted p-3 text-xs leading-relaxed whitespace-pre-wrap break-words">
-                      {gh.body}
-                    </pre>
-                    <p className="text-xs text-muted-foreground">
-                      by {gh.author} · {new Date(gh.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {reviewStatus[gh.number] === "ok" ? (
-                      <span className="text-sm text-muted-foreground">Done</span>
-                    ) : reviewStatus[gh.number] === "error" ? (
-                      <span className="text-sm text-destructive">Error</span>
-                    ) : session?.user?.isMaintainer ? (
-                      <>
-                        <Button
-                          disabled={reviewLoading}
-                          onClick={() => handleReview(gh.number, "approve")}
-                          size="sm"
-                          variant="primary"
-                        >
-                          Approve
-                        </Button>
-                        <Button
-                          disabled={reviewLoading}
-                          onClick={() => handleReview(gh.number, "reject")}
-                          size="sm"
-                          variant="secondary"
-                        >
-                          Reject
-                        </Button>
-                      </>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">Awaiting review</span>
-                    )}
-                  </div>
+                  </button>
+                  {isExpanded ? (
+                    <div className="mt-3 border-t border-border pt-3">
+                      <div className="rounded-md bg-muted p-4">
+                        <pre className="whitespace-pre-wrap break-words text-xs leading-relaxed">{gh.body}</pre>
+                      </div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <a className="text-xs text-primary hover:underline" href={gh.url} rel="noopener noreferrer" target="_blank">
+                          View on GitHub ↗
+                        </a>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       ) : null}
@@ -208,22 +210,25 @@ function ProposalsWorkbench() {
         </div>
       </section>
 
-      <section className={styles.contentPanel} aria-labelledby="session-proposals-title">
-        <div className={`${styles.sectionHeading} ${styles.withActions}`}>
-          <div>
-            <p className={styles.eyebrow}>Session review queue</p>
-            <h2 className={styles.sectionTitle} id="session-proposals-title">
-              Current proposals
-            </h2>
-          </div>
-          {proposals.length > 0 ? (
+      {!session?.user && proposals.length > 0 ? (
+        <section className={styles.contentPanel} aria-labelledby="session-proposals-title">
+          <div className={`${styles.sectionHeading} ${styles.withActions}`}>
+            <div>
+              <p className={styles.eyebrow}>Local drafts</p>
+              <h2 className={styles.sectionTitle} id="session-proposals-title">
+                Session proposals
+              </h2>
+            </div>
             <Button onClick={clearSessionProposals} type="button" variant="secondary">
-              Clear session proposals
+              Clear
             </Button>
-          ) : null}
-        </div>
-        <ProposalList proposals={proposals} />
-      </section>
+          </div>
+          <p className={styles.hint}>
+            Sign in with Discord to create GitHub-backed proposals instead.
+          </p>
+          <ProposalList proposals={proposals} />
+        </section>
+      ) : null}
     </div>
   );
 }
