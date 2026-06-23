@@ -1,3 +1,4 @@
 [submodule "src/data"]
 	path = src/data
-	url = git@github.com:OpenLeagueManager/olmanager-data.git
+	url = https://github.com/OpenLeagueManager/olmanager-data.git
+	branch = main
