@@ -9,6 +9,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientSecret: process.env.AUTH_DISCORD_SECRET,
     }),
   ],
+  trustHost: true,
   callbacks: {
     async session({ session, token }) {
       if (session.user && token.sub) {
